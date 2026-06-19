@@ -5,6 +5,10 @@ ARES Configuration — All paths and constants in one place.
 import os
 from pathlib import Path
 
+# MapmyIndia / Mappls API (optional — for nearby police station lookup)
+MAPMYINDIA_CLIENT_ID = os.environ.get("MAPMYINDIA_CLIENT_ID", "")
+MAPMYINDIA_CLIENT_SECRET = os.environ.get("MAPMYINDIA_CLIENT_SECRET", "")
+
 # Base directory is the backend/ folder
 BASE_DIR = Path(__file__).resolve().parent.parent
 

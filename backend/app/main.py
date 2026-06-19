@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import API_TITLE, API_VERSION, API_DESCRIPTION, MAPS_DIR
 from app.ml import load_models
 from app.database import init_db
-from app.routes import health, analyze, risk, recommendation, similar, hotspots, diversion
+from app.routes import health, analyze, risk, recommendation, similar, hotspots, diversion, report
 
 
 @asynccontextmanager
@@ -64,6 +64,7 @@ app.include_router(recommendation.router)
 app.include_router(similar.router)
 app.include_router(hotspots.router)
 app.include_router(diversion.router)
+app.include_router(report.router)
 
 
 @app.get("/", tags=["System"])
@@ -74,6 +75,7 @@ def root():
         "version": API_VERSION,
         "docs": "/docs",
         "endpoints": [
+            "POST /report",
             "POST /analyze",
             "POST /risk",
             "POST /recommendation",
