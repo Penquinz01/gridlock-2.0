@@ -10,15 +10,15 @@ from typing import Optional
 
 class IncidentInput(BaseModel):
     """Base incident input — used by /analyze and shared across endpoints."""
-    event_type: int = Field(..., ge=0, le=1, description="0=Minor, 1=Major")
-    event_cause: int = Field(..., ge=0, le=16, description="Encoded cause category")
-    veh_type: int = Field(..., ge=0, le=9, description="Encoded vehicle type")
-    corridor: int = Field(..., ge=0, le=21, description="Encoded corridor/road")
-    police_station: int = Field(..., ge=0, le=53, description="Encoded police station")
+    event_type: int = Field(..., ge=0, le=1, description="0=Planned, 1=Unplanned")
+    event_cause: int = Field(..., ge=0, le=16, description="Encoded cause: 0=Debris, 1=Fog, 2=Accident, 3=Congestion, 4=Construction, 5=Debris, 6=Others, 7=Pot Holes, 8=Procession, 9=Protest, 10=Public Event, 11=Road Conditions, 12=Test/Demo, 13=Tree Fall, 14=Vehicle Breakdown, 15=VIP Movement, 16=Water Logging")
+    veh_type: int = Field(..., ge=0, le=10, description="Encoded vehicle: 0=Auto, 1=BMTC Bus, 2=Heavy Vehicle, 3=KSRTC Bus, 4=LCV, 5=Others, 6=Private Bus, 7=Private Car, 8=Taxi, 9=Truck, 10=Unknown")
+    corridor: int = Field(..., ge=0, le=22, description="Encoded corridor/road (0-22)")
+    police_station: int = Field(..., ge=0, le=53, description="Encoded police station (0-53)")
     latitude: float = Field(..., ge=12.5, le=13.5, description="Latitude (Bengaluru range)")
     longitude: float = Field(..., ge=77.0, le=78.0, description="Longitude (Bengaluru range)")
     hour: int = Field(..., ge=0, le=23, description="Hour of day (0-23)")
-    day_of_week: int = Field(..., ge=0, le=6, description="Day of week (0=Mon, 6=Sun)")
+    day_of_week: int = Field(..., ge=0, le=6, description="Day of week (0=Friday, 1=Monday, 2=Saturday, 3=Sunday, 4=Thursday, 5=Tuesday, 6=Wednesday)")
     month: int = Field(..., ge=1, le=12, description="Month (1-12)")
 
     model_config = {"json_schema_extra": {
@@ -72,7 +72,7 @@ class RiskResult(BaseModel):
 # ─── Recommendation ────────────────────────────────────────────
 
 class RecommendationInput(BaseModel):
-    risk_level: str = Field(..., description="CRITICAL, HIGH, MEDIUM, or LOW")
+    risk_level: str = Field(..., description="HIGH or LOW")
     event_type: int = Field(..., ge=0, le=1)
     requires_road_closure: int = Field(..., ge=0, le=1)
     priority: int = Field(..., ge=0, le=1)
@@ -192,18 +192,22 @@ class HealthResponse(BaseModel):
 # ─── Simplified Frontend Input ─────────────────────────────────
 
 class SimplifiedIncidentInput(BaseModel):
-    """Minimal input from the frontend — just location, cause, and time."""
+    """Minimal input from the frontend — location, cause, time, optional vehicle type, and description."""
     latitude: float = Field(..., ge=12.0, le=14.0, description="Latitude (Bengaluru range)")
     longitude: float = Field(..., ge=76.5, le=78.5, description="Longitude (Bengaluru range)")
-    event_cause: int = Field(..., ge=0, le=16, description="Encoded cause category")
+    event_cause: int = Field(..., ge=0, le=17, description="Encoded cause category (0 to 17)")
     time: str = Field(..., description="ISO 8601 datetime string, e.g. 2026-06-19T15:30:00")
+    veh_type: Optional[int] = Field(None, ge=0, le=9, description="Optional encoded vehicle type if cause involves vehicles")
+    description: Optional[str] = Field(None, description="Custom description if event_cause is 17 (Other)")
 
     model_config = {"json_schema_extra": {
         "examples": [{
             "latitude": 13.04,
             "longitude": 77.518,
-            "event_cause": 14,
-            "time": "2026-06-19T15:30:00"
+            "event_cause": 17,
+            "time": "2026-06-19T15:30:00",
+            "veh_type": 2,
+            "description": "A massive sinkhole has blocked the entire road."
         }]
     }}
 
@@ -243,4 +247,37 @@ class SimplifiedAnalyzeResponse(BaseModel):
     recommendation: RecommendationResult
     similar_incidents: list[SimilarIncident]
     diversion_map_url: str
+
+
+# ─── Police Station Portal ─────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    police_station: int = Field(..., ge=0, le=53, description="Encoded police station ID")
+    password: str = Field(..., description="Credentials for login")
+
+    model_config = {"json_schema_extra": {
+        "examples": [{"police_station": 39, "password": "station_pass_39"}]
+    }}
+
+
+class LoginResponse(BaseModel):
+    success: bool
+    token: str
+    station_id: int
+    station_name: str
+
+
+class FeedbackInput(BaseModel):
+    actual_officers: int = Field(..., ge=0, description="Actual number of officers deployed")
+    actual_barricades: int = Field(..., ge=0, description="Actual number of barricades used")
+    actual_road_closure: int = Field(..., ge=0, le=1, description="Was road closure actually needed? (0=No, 1=Yes)")
+    actual_priority: int = Field(..., ge=0, le=1, description="Was it actually high priority? (0=Low, 1=High)")
+    feedback_notes: Optional[str] = Field(None, description="Post-incident retrospective notes")
+
+
+class FeedbackResponse(BaseModel):
+    success: bool
+    incident_id: str
+    status: str = "RESOLVED"
+
 

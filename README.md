@@ -46,6 +46,28 @@ When an incident is reported, the backend runs a multi-step analytical pipeline:
 5. **Diversion Visualization**: Auto-generates interactive Folium maps pointing to the incident location, marked with diversion circles and corridor warnings.
 6. **Hotspot Analytics**: Aggregates high-frequency incident coordinates and displays risk patterns across major Bengaluru corridors.
 
+### 📊 Risk & Resource Calculation Logic
+
+The resource recommendation engine calculates an operational risk score (capped at 100) using the following scoring points:
+
+* **High Priority** predicted by ML: **+25 points**
+* **Road Closure** predicted by ML: **+20 points**
+* **Peak Traffic Hours** (8-10 AM or 5-7 PM): **+15 points**
+* **Major Incident Type**: **+15 points**
+* **Night-time / Low Visibility**: **+10 points**
+* **Heavy Vehicle Involved** (Truck/Bus/Tanker): **+10 points**
+* **Two-Wheeler Involved**: **+5 points**
+
+The final score translates directly into resource requirements:
+
+| Risk Score | Risk Level | Recommended Officers | Recommended Barricades | Escalation Contact |
+| :--- | :--- | :---: | :---: | :--- |
+| $\ge$ 50 | 🔴 **HIGH** | **6 Officers** | 4 Barricades | ACP |
+| $<$ 50 | 🟢 **LOW** | **2 Officers** | 0 Barricades | Inspector |
+
+*(Additionally, a heavy recovery vehicle/crane is automatically requested if a heavy vehicle is involved).*
+
+
 ---
 
 ## 📥 Setup and Installation
@@ -145,3 +167,44 @@ If you want to use the live MapmyIndia (Mappls) Places API to find actual, real-
    $env:MAPMYINDIA_CLIENT_SECRET="your_client_secret"
    ```
 3. When running the server, `/api/report` will automatically query Mappls for live coordinates. If the API keys are not set, it gracefully falls back to the local nearest-neighbor lookup.
+
+---
+
+## 🚔 Police Station Portal & Retrospective Feedback (Learning Loop)
+
+To support station-level incident queues and post-incident learning, ARES includes a dedicated Station Portal API.
+
+### 1. Police Station Login
+Every police station can log in using their numerical code (e.g., `39`). 
+* **Endpoint**: `POST /api/portal/login`
+* **JSON Body**:
+  ```json
+  {
+    "police_station": 39,
+    "password": "station_pass_39"
+  }
+  ```
+  *(Note: For simplicity, the passcode format is `station_pass_<station_id>`)*
+* **Response**: Returns a secure session token to authorize future requests.
+
+### 2. Station-Specific Active Queues
+Retrieve active or resolved incidents assigned specifically to a given police station.
+* **Endpoint**: `GET /api/portal/incidents/{station_id}`
+* **Authorization**: Include the session token as a Bearer token in the `Authorization` header.
+* **Optional Query Parameters**: `?status=ACTIVE` or `?status=RESOLVED`.
+
+### 3. Post-Incident Retrospective Feedback
+When an incident is cleared, the station officer submits a feedback form (post-learning loop) detailing what resources were *actually* needed versus what the model recommended. This stores the true labels in the database, allowing future retraining.
+* **Endpoint**: `POST /api/portal/incidents/{incident_id}/feedback`
+* **Authorization**: Require `Authorization` header token.
+* **JSON Body**:
+  ```json
+  {
+    "actual_officers": 5,
+    "actual_barricades": 8,
+    "actual_road_closure": 1,
+    "actual_priority": 1,
+    "feedback_notes": "Heavy rains made a road closure absolutely necessary. Deployed 5 officers."
+  }
+  ```
+* **Effect**: Saves feedback details to the database and transitions the incident `status` from `'ACTIVE'` to `'RESOLVED'` in real-time.

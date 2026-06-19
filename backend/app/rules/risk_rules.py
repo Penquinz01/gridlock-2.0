@@ -34,11 +34,8 @@ RISK_RULES = [
 
 
 def get_risk_level(score: int) -> str:
-    """Convert numeric score to risk level label."""
-    if score >= 70:
-        return "CRITICAL"
+    """Convert numeric score to risk level label (HIGH or LOW)."""
     if score >= 50:
         return "HIGH"
-    if score >= 30:
-        return "MEDIUM"
     return "LOW"
+

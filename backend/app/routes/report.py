@@ -18,7 +18,7 @@ from app.services import (
     recommendation_service, similarity_service, diversion_service,
 )
 from app.services.location_service import resolve_full_location
-from app.database import save_incident
+from app.database import save_incident, save_other_incident
 from app.utils.mappings import EVENT_TYPE, EVENT_CAUSE, VEHICLE_TYPE, CORRIDOR, get_label
 
 router = APIRouter(tags=["Report"])
@@ -26,15 +26,26 @@ router = APIRouter(tags=["Report"])
 
 # ─── Inference helpers ──────────────────────────────────────────
 
-# Causes that usually involve serious / major incidents
-_MAJOR_CAUSES = {4, 5, 8, 11, 12, 15}  # Drunk, Distracted, Weather, Tyre Burst, Brake Fail, Head-On
+# event_type inference from event_cause (derived from actual Data.csv):
+#
+# ALWAYS PLANNED  → public_event(10), vip_movement(15)
+# MOSTLY PLANNED  → construction(4), procession(8), protest(9)
+# ALWAYS UNPLANNED → everything else (accident, vehicle_breakdown, pot_holes, etc.)
+#
+_PLANNED_CAUSES = {4, 8, 9, 10, 15}  # construction, procession, protest, public_event, vip_movement
 
-DEFAULT_VEH_TYPE = 2  # Car/Sedan — safest default when unknown
+DEFAULT_VEH_TYPE = 7  # Private Car — most common in data when vehicle type unknown
 
 
 def _infer_event_type(event_cause: int) -> int:
-    """Infer event_type from event_cause. Major causes → 1, else → 0."""
-    return 1 if event_cause in _MAJOR_CAUSES else 0
+    """Infer event_type from event_cause.
+
+    0 = Unplanned (accidents, breakdowns, weather, congestion, etc.)
+    1 = Planned   (public events, VIP movements, construction, processions)
+
+    Based on actual distribution in Data.csv.
+    """
+    return 1 if event_cause in _PLANNED_CAUSES else 0
 
 
 def _parse_time(time_str: str) -> dict:
@@ -87,7 +98,7 @@ def report_incident(input: SimplifiedIncidentInput):
 
     # --- Step 3: Infer missing features ---
     event_type = _infer_event_type(input.event_cause)
-    veh_type = DEFAULT_VEH_TYPE
+    veh_type = input.veh_type if input.veh_type is not None else DEFAULT_VEH_TYPE
 
     # Build the full feature dict (same shape the models expect)
     data = {
@@ -152,6 +163,17 @@ def report_incident(input: SimplifiedIncidentInput):
         "barricades": recommendation["barricades"],
         "escalation": recommendation["escalation"],
     })
+
+    # Save custom description to secondary database if cause is 'Other' (17)
+    if input.event_cause == 17:
+        desc = input.description if input.description else "No description provided"
+        save_other_incident(
+            incident_id=incident_id,
+            latitude=input.latitude,
+            longitude=input.longitude,
+            time=input.time,
+            description=desc
+        )
 
     # --- Build response ---
     return SimplifiedAnalyzeResponse(

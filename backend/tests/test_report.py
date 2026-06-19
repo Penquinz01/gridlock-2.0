@@ -6,6 +6,7 @@ import pytest
 from datetime import datetime
 from fastapi.testclient import TestClient
 from app.main import app
+from app.database import get_other_incident
 
 client = TestClient(app)
 
@@ -178,6 +179,21 @@ class TestFullPipeline:
         assert data["inferred"]["veh_type"] == 2
         assert data["inferred"]["veh_type_label"] == "Car/Sedan"
 
+    def test_custom_veh_type(self):
+        """Passing custom veh_type should override default."""
+        resp = client.post("/report", json={
+            "latitude": 13.04,
+            "longitude": 77.518,
+            "event_cause": 14,
+            "time": "2026-06-19T17:30:00",
+            "veh_type": 5,  # Bus
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["inferred"]["veh_type"] == 5
+        assert data["inferred"]["veh_type_label"] == "Bus"
+
+
 
 # ─── Validation ─────────────────────────────────────────────────
 
@@ -202,3 +218,46 @@ class TestValidation:
             "time": "2026-06-19T15:30:00",
         })
         assert resp.status_code == 422
+
+
+# ─── Other Incidents (Cause 17) & Secondary DB ──────────────────
+
+class TestOtherIncident:
+    """Test custom description handling and secondary database storage for cause 17 (Other)."""
+
+    def test_other_incident_description_saved(self):
+        """Incident with cause 17 and description should write to secondary DB."""
+        custom_desc = "Sinkhole opened up on Outer Ring Road, blocking traffic."
+        resp = client.post("/report", json={
+            "latitude": 13.04,
+            "longitude": 77.518,
+            "event_cause": 17,  # Other
+            "time": "2026-06-19T18:00:00",
+            "description": custom_desc
+        })
+        assert resp.status_code == 200
+        incident_id = resp.json()["incident_id"]
+
+        # Check secondary database
+        other_db_record = get_other_incident(incident_id)
+        assert other_db_record is not None
+        assert other_db_record["description"] == custom_desc
+        assert other_db_record["latitude"] == 13.04
+        assert other_db_record["longitude"] == 77.518
+
+    def test_other_incident_no_description_defaults(self):
+        """Incident with cause 17 and no description should write default text to secondary DB."""
+        resp = client.post("/report", json={
+            "latitude": 13.04,
+            "longitude": 77.518,
+            "event_cause": 17,  # Other
+            "time": "2026-06-19T18:00:00"
+        })
+        assert resp.status_code == 200
+        incident_id = resp.json()["incident_id"]
+
+        # Check secondary database has default description
+        other_db_record = get_other_incident(incident_id)
+        assert other_db_record is not None
+        assert other_db_record["description"] == "No description provided"
+

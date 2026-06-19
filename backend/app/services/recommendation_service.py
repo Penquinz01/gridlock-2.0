@@ -17,7 +17,8 @@ def get_recommendation(risk_level: str, incident: dict = None) -> dict:
         {"officers": int, "barricades": int, "escalation": str, "additional_notes": list[str]}
     """
     # Look up base recommendation
-    base = RESOURCE_TABLE.get(risk_level, RESOURCE_TABLE["MEDIUM"])
+    base = RESOURCE_TABLE.get(risk_level, RESOURCE_TABLE["LOW"])
+
 
     notes = list(base["notes"])  # Copy to avoid mutating the rule table
 

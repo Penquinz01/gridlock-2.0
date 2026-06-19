@@ -21,6 +21,7 @@ DATASET_PATH = BASE_DIR / "preprocessed_data" / "preprocessed_data.csv"
 
 # Database
 DB_PATH = BASE_DIR / "ares.db"
+OTHER_DB_PATH = BASE_DIR / "other_incidents.db"
 
 # Generated maps directory
 MAPS_DIR = BASE_DIR / "generated_maps"
