@@ -197,3 +197,14 @@ def get_other_incident(incident_id: str) -> dict | None:
     return dict(row) if row else None
 
 
+# ─── Routing Helpers ─────────────────────────────────────────────
+
+def get_active_incidents() -> list[dict]:
+    """Get all ACTIVE incidents with location, priority, and road closure info."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, latitude, longitude, priority, road_closure, risk_level "
+        "FROM incidents WHERE status = 'ACTIVE' ORDER BY created_at DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
