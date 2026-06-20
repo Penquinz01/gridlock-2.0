@@ -189,6 +189,8 @@ def report_incident(input: SimplifiedIncidentInput):
         inferred=InferredFields(
             event_type=event_type,
             event_type_label=get_label(EVENT_TYPE, event_type),
+            event_cause=input.event_cause,
+            event_cause_label=get_label(EVENT_CAUSE, input.event_cause),
             veh_type=veh_type,
             veh_type_label=get_label(VEHICLE_TYPE, veh_type),
             hour=data["hour"],

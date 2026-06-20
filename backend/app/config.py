@@ -5,12 +5,31 @@ ARES Configuration — All paths and constants in one place.
 import os
 from pathlib import Path
 
+# Base directory is the backend/ folder
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env manually if it exists in backend/ or root workspace directory
+def _load_dotenv():
+    for p in [BASE_DIR / ".env", BASE_DIR.parent / ".env"]:
+        if p.is_file():
+            with open(p, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        parts = line.split("=", 1)
+                        key = parts[0].strip()
+                        val = parts[1].strip().strip('"').strip("'")
+                        if key:
+                            os.environ.setdefault(key, val)
+
+_load_dotenv()
+
 # MapmyIndia / Mappls API (optional — for nearby police station lookup)
+MAPMYINDIA_API_KEY = os.environ.get("MAPMYINDIA_API_KEY", "")
 MAPMYINDIA_CLIENT_ID = os.environ.get("MAPMYINDIA_CLIENT_ID", "")
 MAPMYINDIA_CLIENT_SECRET = os.environ.get("MAPMYINDIA_CLIENT_SECRET", "")
 
-# Base directory is the backend/ folder
-BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 # Model paths
 PRIORITY_MODEL_PATH = BASE_DIR / "models" / "priority_model.pkl"
