@@ -13,7 +13,8 @@ Strategy:
 import numpy as np
 import requests
 from app.ml import get_dataset
-from app.config import MAPMYINDIA_CLIENT_ID, MAPMYINDIA_CLIENT_SECRET
+from app.config import MAPMYINDIA_API_KEY, MAPMYINDIA_CLIENT_ID, MAPMYINDIA_CLIENT_SECRET
+
 from app.utils.mappings import CORRIDOR, get_label
 
 
@@ -94,42 +95,72 @@ def _get_mappls_token() -> str | None:
 def search_nearby_police_station(latitude: float, longitude: float) -> dict | None:
     """
     Search for nearby police stations using Mappls Nearby Places API.
+    Supports either the static MAPMYINDIA_API_KEY or OAuth Bearer Token.
+    Retries up to 3 times on transient server errors (503).
 
     Returns the closest police station dict or None on failure.
     """
-    token = _get_mappls_token()
-    if not token:
-        return None
+    import time
 
-    try:
-        resp = requests.get(
-            "https://atlas.mapmyindia.com/api/places/nearby/json",
-            params={
-                "keywords": "police station",
-                "refLocation": f"{latitude},{longitude}",
-                "radius": 5000,  # 5 km radius
-                "sortBy": "dist:asc",
-            },
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=5,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+    params = {
+        "keywords": "police station",
+        "refLocation": f"{latitude},{longitude}",
+        "radius": 5000,  # 5 km radius
+        "sortBy": "dist:asc",
+    }
+    headers = {}
 
-        results = data.get("suggestedLocations", [])
-        if results:
-            nearest = results[0]
-            return {
-                "name": nearest.get("placeName", "Unknown"),
-                "address": nearest.get("placeAddress", ""),
-                "latitude": float(nearest.get("latitude", latitude)),
-                "longitude": float(nearest.get("longitude", longitude)),
-                "distance_meters": nearest.get("distance", 0),
-            }
-    except Exception as e:
-        print(f"[WARN] Mappls nearby search failed: {e}")
+    # Use static API key as query param if present
+    if MAPMYINDIA_API_KEY:
+        params["access_token"] = MAPMYINDIA_API_KEY
+        url = "https://search.mappls.com/api/places/nearby/json"
+    else:
+        # Fallback to OAuth token
+        token = _get_mappls_token()
+        if not token:
+            return None
+        headers["Authorization"] = f"Bearer {token}"
+        url = "https://atlas.mapmyindia.com/api/places/nearby/json"
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            resp = requests.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=5,
+            )
+
+            # Retry on 503 Service Unavailable
+            if resp.status_code == 503 and attempt < max_retries - 1:
+                print(f"[WARN] Mappls API returned 503, retrying ({attempt + 1}/{max_retries})...")
+                time.sleep(0.5)
+                continue
+
+            resp.raise_for_status()
+            data = resp.json()
+
+            results = data.get("suggestedLocations", [])
+            if results:
+                nearest = results[0]
+                return {
+                    "name": nearest.get("placeName", "Unknown"),
+                    "address": nearest.get("placeAddress", ""),
+                    "latitude": float(nearest.get("latitude", latitude)),
+                    "longitude": float(nearest.get("longitude", longitude)),
+                    "distance_meters": nearest.get("distance", 0),
+                }
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"[WARN] Mappls nearby search attempt {attempt + 1} failed: {e}, retrying...")
+                time.sleep(0.5)
+                continue
+            print(f"[WARN] Mappls nearby search failed after {max_retries} attempts: {e}")
+
 
     return None
+
 
 
 def resolve_full_location(latitude: float, longitude: float) -> dict:

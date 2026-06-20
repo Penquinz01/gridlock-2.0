@@ -15,8 +15,8 @@ class IncidentInput(BaseModel):
     veh_type: int = Field(..., ge=0, le=10, description="Encoded vehicle: 0=Auto, 1=BMTC Bus, 2=Heavy Vehicle, 3=KSRTC Bus, 4=LCV, 5=Others, 6=Private Bus, 7=Private Car, 8=Taxi, 9=Truck, 10=Unknown")
     corridor: int = Field(..., ge=0, le=22, description="Encoded corridor/road (0-22)")
     police_station: int = Field(..., ge=0, le=53, description="Encoded police station (0-53)")
-    latitude: float = Field(..., ge=12.5, le=13.5, description="Latitude (Bengaluru range)")
-    longitude: float = Field(..., ge=77.0, le=78.0, description="Longitude (Bengaluru range)")
+    latitude: float = Field(..., ge=12.7, le=13.4, description="Latitude (Bengaluru district: ~12.7 to ~13.4)")
+    longitude: float = Field(..., ge=77.2, le=77.9, description="Longitude (Bengaluru district: ~77.2 to ~77.9)")
     hour: int = Field(..., ge=0, le=23, description="Hour of day (0-23)")
     day_of_week: int = Field(..., ge=0, le=6, description="Day of week (0=Friday, 1=Monday, 2=Saturday, 3=Sunday, 4=Thursday, 5=Tuesday, 6=Wednesday)")
     month: int = Field(..., ge=1, le=12, description="Month (1-12)")
@@ -154,8 +154,8 @@ class HotspotResponse(BaseModel):
 # ─── Diversion ─────────────────────────────────────────────────
 
 class DiversionInput(BaseModel):
-    latitude: float = Field(..., ge=12.5, le=13.5)
-    longitude: float = Field(..., ge=77.0, le=78.0)
+    latitude: float = Field(..., ge=12.7, le=13.4, description="Latitude (Bengaluru district)")
+    longitude: float = Field(..., ge=77.2, le=77.9, description="Longitude (Bengaluru district)")
     incident_id: Optional[str] = None
 
     model_config = {"json_schema_extra": {
@@ -193,8 +193,9 @@ class HealthResponse(BaseModel):
 
 class SimplifiedIncidentInput(BaseModel):
     """Minimal input from the frontend — location, cause, time, optional vehicle type, and description."""
-    latitude: float = Field(..., ge=12.0, le=14.0, description="Latitude (Bengaluru range)")
-    longitude: float = Field(..., ge=76.5, le=78.5, description="Longitude (Bengaluru range)")
+    latitude: float = Field(..., ge=12.7, le=13.4, description="Latitude (Bengaluru district: ~12.7 to ~13.4)")
+    longitude: float = Field(..., ge=77.2, le=77.9, description="Longitude (Bengaluru district: ~77.2 to ~77.9)")
+
     event_cause: int = Field(..., ge=0, le=17, description="Encoded cause category (0 to 17)")
     time: str = Field(..., description="ISO 8601 datetime string, e.g. 2026-06-19T15:30:00")
     veh_type: Optional[int] = Field(None, ge=0, le=9, description="Optional encoded vehicle type if cause involves vehicles")
@@ -226,6 +227,8 @@ class InferredFields(BaseModel):
     """Fields auto-inferred by the backend."""
     event_type: int
     event_type_label: str
+    event_cause: int
+    event_cause_label: str
     veh_type: int
     veh_type_label: str
     hour: int

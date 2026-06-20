@@ -18,17 +18,18 @@ from app.services.auth_service import authenticate_station, verify_token
 router = APIRouter(prefix="/api/portal", tags=["Station Portal"])
 
 
-def get_current_station_id(authorization: Optional[str] = Header(None)) -> int:
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security_scheme = HTTPBearer(auto_error=False)
+
+def get_current_station_id(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme)) -> int:
     """Dependency to extract and verify the station ID from the Authorization header."""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authorization header missing")
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Authorization header missing or invalid")
 
-    # Handle optional 'Bearer ' prefix
-    token = authorization
-    if token.startswith("Bearer "):
-        token = token[7:]
-
+    token = credentials.credentials
     return verify_token(token)
+
 
 
 @router.post("/login", response_model=LoginResponse)

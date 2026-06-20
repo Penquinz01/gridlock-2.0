@@ -58,7 +58,7 @@ class TestEventTypeInference:
     """Test event_type is correctly inferred from event_cause."""
 
     def test_minor_cause_maps_to_minor(self):
-        """Rash Driving (cause=0) → Minor (type=0)."""
+        """Rash Driving (cause=0) → Planned (type=0) under updated LabelEncoder."""
         resp = client.post("/report", json={
             "latitude": 13.04,
             "longitude": 77.518,
@@ -67,10 +67,10 @@ class TestEventTypeInference:
         })
         assert resp.status_code == 200
         assert resp.json()["inferred"]["event_type"] == 0
-        assert resp.json()["inferred"]["event_type_label"] == "Minor Incident"
+        assert resp.json()["inferred"]["event_type_label"] == "Planned"
 
     def test_major_cause_maps_to_major(self):
-        """Head On Collision (cause=15) → Major (type=1)."""
+        """Head On Collision (cause=15) → Unplanned (type=1) under updated LabelEncoder."""
         resp = client.post("/report", json={
             "latitude": 13.04,
             "longitude": 77.518,
@@ -79,7 +79,8 @@ class TestEventTypeInference:
         })
         assert resp.status_code == 200
         assert resp.json()["inferred"]["event_type"] == 1
-        assert resp.json()["inferred"]["event_type_label"] == "Major Incident"
+        assert resp.json()["inferred"]["event_type_label"] == "Unplanned"
+
 
 
 # ─── Location resolution ───────────────────────────────────────
@@ -168,7 +169,7 @@ class TestFullPipeline:
         assert 0 <= data["road_closure"]["confidence"] <= 1
 
     def test_default_veh_type_is_car(self):
-        """veh_type should default to 2 (Car/Sedan)."""
+        """veh_type should default to 7 (Private Car)."""
         resp = client.post("/report", json={
             "latitude": 13.04,
             "longitude": 77.518,
@@ -176,8 +177,8 @@ class TestFullPipeline:
             "time": "2026-06-19T17:30:00",
         })
         data = resp.json()
-        assert data["inferred"]["veh_type"] == 2
-        assert data["inferred"]["veh_type_label"] == "Car/Sedan"
+        assert data["inferred"]["veh_type"] == 7
+        assert data["inferred"]["veh_type_label"] == "Private Car"
 
     def test_custom_veh_type(self):
         """Passing custom veh_type should override default."""
@@ -186,12 +187,13 @@ class TestFullPipeline:
             "longitude": 77.518,
             "event_cause": 14,
             "time": "2026-06-19T17:30:00",
-            "veh_type": 5,  # Bus
+            "veh_type": 1,  # BMTC Bus
         })
         assert resp.status_code == 200
         data = resp.json()
-        assert data["inferred"]["veh_type"] == 5
-        assert data["inferred"]["veh_type_label"] == "Bus"
+        assert data["inferred"]["veh_type"] == 1
+        assert data["inferred"]["veh_type_label"] == "BMTC Bus"
+
 
 
 
