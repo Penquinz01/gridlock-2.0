@@ -46,7 +46,7 @@ const UserRole = () => {
     // Fetch Hotspots
     const fetchHotspots = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/hotspots`);
+        const response = await axios.get(`${API_BASE_URL}/hotspots?top_n=50`);
         setHotspots(response.data?.hotspots || []);
       } catch (error) {
         console.error("Error fetching hotspots:", error);
