@@ -28,7 +28,7 @@ def get_hotspots(
     # Load from SQLite incidents table instead of the preprocessed CSV
     conn = sqlite3.connect(str(DB_PATH))
     try:
-        df = pd.read_sql_query("SELECT * FROM incidents", conn)
+        df = pd.read_sql_query("SELECT * FROM incidents WHERE status = 'ACTIVE'", conn)
     except Exception as e:
         print(f"[WARN] Error reading from SQLite database: {e}")
         df = pd.DataFrame()
