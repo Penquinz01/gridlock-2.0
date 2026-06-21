@@ -69,10 +69,48 @@ def decode_polyline(encoded: str) -> list[list[float]]:
 
 def fetch_routes(origin_lat: float, origin_lon: float, dest_lat: float, dest_lon: float) -> list[dict]:
     """
-    Call OSRM (Open Source Routing Machine) public API to get driving routes
-    with alternatives. Free, no API key needed.
+    Call Mappls Directions API to get driving routes with alternatives.
+    Falls back to public OSRM API if Mappls fails (e.g. key issue or quota limits).
     Returns a list of route dicts, each with 'coordinates', 'distance_m', 'duration_s'.
     """
+    # 1. Try Mappls first
+    if MAPMYINDIA_API_KEY:
+        mappls_url = (
+            f"https://route.mappls.com/route/direction/route_adv/driving/"
+            f"{origin_lon},{origin_lat};{dest_lon},{dest_lat}"
+        )
+        mappls_params = {
+            "access_token": MAPMYINDIA_API_KEY,
+            "geometries": "polyline",
+            "overview": "full",
+            "alternatives": "true",
+            "steps": "true",
+        }
+        try:
+            print(f"[INFO] Fetching routes from Mappls Directions API...")
+            resp = requests.get(mappls_url, params=mappls_params, timeout=10)
+            # If the response is not successful or has error codes, raise an error to trigger fallback
+            resp.raise_for_status()
+            data = resp.json()
+            
+            if "routes" in data and len(data["routes"]) > 0:
+                routes = []
+                for route in data.get("routes", []):
+                    coords = decode_polyline(route["geometry"])
+                    routes.append({
+                        "coordinates": coords,
+                        "distance_m": route["distance"],
+                        "duration_s": route["duration"],
+                    })
+                print(f"[INFO] Successfully retrieved {len(routes)} routes from Mappls.")
+                return routes
+            else:
+                print(f"[WARN] Mappls response did not contain routes: {data}")
+        except Exception as e:
+            print(f"[WARN] Mappls routing failed: {e}. Falling back to OSRM...")
+
+    # 2. Fallback to OSRM
+    print(f"[INFO] Fetching routes from OSRM...")
     url = (
         f"https://router.project-osrm.org/route/v1/driving/"
         f"{origin_lon},{origin_lat};{dest_lon},{dest_lat}"
@@ -117,6 +155,7 @@ def fetch_routes(origin_lat: float, origin_lon: float, dest_lat: float, dest_lon
                 time.sleep(0.5)
                 continue
             raise RuntimeError(f"OSRM API failed after {max_retries} attempts: {e}")
+
 
 
 
@@ -175,10 +214,10 @@ def find_best_route(origin_lat: float, origin_lon: float, dest_lat: float, dest_
     # 1. Fetch active incidents
     incidents = get_active_incidents()
 
-    # 2. Fetch route alternatives from Mappls
+    # 2. Fetch route alternatives
     routes = fetch_routes(origin_lat, origin_lon, dest_lat, dest_lon)
     if not routes:
-        raise RuntimeError("No routes returned from OSRM routing API")
+        raise RuntimeError("No routes returned from routing API")
 
     # 3. Score each route
     best_route = None
