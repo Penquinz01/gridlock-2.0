@@ -257,9 +257,7 @@ const UserRole = () => {
           hotspots={hotspots}
           onMapClick={handleMapClick}
         />
-        {/* We can add overlay UI on top of map here if needed */}
-        <div className="flex-row gap-2" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 'var(--z-overlay)' }}>
-          <a href="/feedback" className="btn" style={{ backgroundColor: 'var(--primary)', color: '#ffffff', border: 'none' }}>Feedback Loop Dashboard</a>
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 'var(--z-overlay)' }}>
           <a href="/login" className="btn" style={{ backgroundColor: '#000000', color: '#ffffff', border: '1px solid var(--border-light)' }}>Police Station Login</a>
         </div>
       </div>
