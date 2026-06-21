@@ -141,8 +141,10 @@ class Hotspot(BaseModel):
     latitude: float
     longitude: float
     corridor: int
+    corridor_name: Optional[str] = None
     incident_count: int
     high_priority_pct: float
+
 
 
 class HotspotResponse(BaseModel):

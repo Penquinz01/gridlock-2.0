@@ -5,8 +5,11 @@ Groups incidents by location (rounded lat/lon) and corridor,
 then ranks by incident count and high-priority percentage.
 """
 
+import sqlite3
+import pandas as pd
 import numpy as np
-from app.ml import get_dataset
+from app.config import DB_PATH
+from app.utils.mappings import CORRIDOR, get_label
 
 
 def get_hotspots(
@@ -22,7 +25,16 @@ def get_hotspots(
     Returns:
         {"total_incidents": int, "hotspots": list[dict], "filters_applied": dict}
     """
-    df = get_dataset().copy()
+    # Load from SQLite incidents table instead of the preprocessed CSV
+    conn = sqlite3.connect(str(DB_PATH))
+    try:
+        df = pd.read_sql_query("SELECT * FROM incidents", conn)
+    except Exception as e:
+        print(f"[WARN] Error reading from SQLite database: {e}")
+        df = pd.DataFrame()
+    finally:
+        conn.close()
+
 
     # Apply filters
     filters_applied = {}
@@ -63,10 +75,12 @@ def get_hotspots(
 
     hotspots = []
     for _, row in grouped.iterrows():
+        corridor_id = int(row["corridor"])
         hotspots.append({
             "latitude": round(float(row["avg_lat"]), 6),
             "longitude": round(float(row["avg_lon"]), 6),
-            "corridor": int(row["corridor"]),
+            "corridor": corridor_id,
+            "corridor_name": get_label(CORRIDOR, corridor_id),
             "incident_count": int(row["incident_count"]),
             "high_priority_pct": float(row["high_priority_pct"]),
         })
