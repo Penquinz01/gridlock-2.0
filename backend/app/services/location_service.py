@@ -139,7 +139,11 @@ def search_nearby_police_station(latitude: float, longitude: float) -> dict | No
                 continue
 
             resp.raise_for_status()
-            data = resp.json()
+            
+            try:
+                data = resp.json()
+            except ValueError:
+                raise RuntimeError(f"API returned a non-JSON response (status: {resp.status_code})")
 
             results = data.get("suggestedLocations", [])
             if results:
@@ -157,6 +161,7 @@ def search_nearby_police_station(latitude: float, longitude: float) -> dict | No
                 time.sleep(0.5)
                 continue
             print(f"[WARN] Mappls nearby search failed after {max_retries} attempts: {e}")
+
 
 
     return None
