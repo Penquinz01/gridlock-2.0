@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MapPin, AlertTriangle, Send } from 'lucide-react';
 import IncidentMap from '../components/IncidentMap';
+import { EVENT_CAUSE, VEHICLE_TYPE } from '../utils/mappings';
 
 const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
 
@@ -171,13 +172,11 @@ const UserRole = () => {
                 required
               >
                 <option value="">Select a cause</option>
-                <option value="2">Vehicle Crash</option>
-                <option value="14">Vehicle Breakdown</option>
-                <option value="16">Water Logging</option>
-                <option value="13">Tree Fall</option>
-                <option value="4">Road Construction</option>
-                <option value="7">Pot Holes</option>
-                <option value="17">Other</option>
+                {Object.entries(EVENT_CAUSE).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -205,15 +204,11 @@ const UserRole = () => {
                 onChange={handleInputChange}
               >
                 <option value="">Select Vehicle</option>
-                <option value="0">Auto Rickshaw</option>
-                <option value="1">BMTC Bus</option>
-                <option value="2">Heavy Vehicle</option>
-                <option value="3">KSRTC Bus</option>
-                <option value="4">LCV (Light Commercial)</option>
-                <option value="6">Private Bus</option>
-                <option value="7">Private Car</option>
-                <option value="8">Taxi</option>
-                <option value="9">Truck</option>
+                {Object.entries(VEHICLE_TYPE).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </div>
 

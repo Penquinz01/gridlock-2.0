@@ -2,15 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Activity, AlertCircle, CheckCircle, Truck } from 'lucide-react';
+import { EVENT_CAUSE, POLICE_STATION } from '../utils/mappings';
 
 const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
 
-const EVENT_CAUSE_MAP = {
-  0: 'Debris', 1: 'Fog', 2: 'Vehicle Crash', 3: 'Congestion', 4: 'Road Construction', 
-  5: 'Debris', 6: 'Others', 7: 'Pot Holes', 8: 'Procession', 9: 'Protest', 
-  10: 'Public Event', 11: 'Road Conditions', 12: 'Test/Demo', 13: 'Tree Fall', 
-  14: 'Vehicle Breakdown', 15: 'VIP Movement', 16: 'Water Logging', 17: 'Other'
-};
+
 
 const StationDashboard = () => {
   const [incidents, setIncidents] = useState([]);
@@ -93,7 +89,7 @@ const StationDashboard = () => {
         <div className="flex-row align-center gap-4">
           <Activity color="var(--primary)" size={28} />
           <h1 className="text-h3">ARES Command Center</h1>
-          <span className="badge badge-success">Station #{stationId}</span>
+          <span className="badge badge-success">{POLICE_STATION[stationId] || `Station #${stationId}`}</span>
         </div>
         <button className="btn btn-ghost" onClick={handleLogout}>
           <LogOut size={18} /> Logout
@@ -154,7 +150,7 @@ const StationDashboard = () => {
                 <div key={idx} className="glass-panel flex-col" style={{ padding: 'var(--spacing-5)', borderTop: `4px solid ${riskColor}` }}>
                   <div className="flex-row justify-between align-center" style={{ marginBottom: 'var(--spacing-3)' }}>
                     <div className="flex-col">
-                      <span className="font-bold text-h3">{EVENT_CAUSE_MAP[inc.event_cause] || 'Incident'}</span>
+                      <span className="font-bold text-h3">{EVENT_CAUSE[inc.event_cause] || 'Incident'}</span>
                       {inc.description && <span className="text-small text-muted" style={{ marginTop: '2px' }}>{inc.description}</span>}
                     </div>
                     <span className={`badge ${badgeClass}`}>Risk: {inc.risk_level || 'LOW'} ({inc.risk_score || 0})</span>

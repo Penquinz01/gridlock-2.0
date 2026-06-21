@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { POLICE_STATION } from '../utils/mappings';
 
 const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
 
@@ -58,15 +59,20 @@ const StationLogin = () => {
 
         <form onSubmit={handleLogin} className="flex-col gap-4">
           <div className="input-group" style={{ marginBottom: 0 }}>
-            <label className="input-label">Station ID</label>
-            <input 
-              type="text" 
+            <label className="input-label">Select Police Station</label>
+            <select 
               className="input-field" 
-              placeholder="e.g., 39" 
               value={stationId}
               onChange={(e) => setStationId(e.target.value)}
               required 
-            />
+            >
+              <option value="">Select a Station</option>
+              {Object.entries(POLICE_STATION).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name} (ID: {id})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="input-group" style={{ marginBottom: 0 }}>
