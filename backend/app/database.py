@@ -97,6 +97,14 @@ def get_all_incidents() -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def get_active_incidents() -> list[dict]:
+    """Get all active incidents (status = 'ACTIVE')."""
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM incidents WHERE status = 'ACTIVE' ORDER BY created_at DESC").fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
 def get_incident_by_id(incident_id: str) -> dict | None:
     """Fetch a single incident by ID."""
     conn = get_connection()

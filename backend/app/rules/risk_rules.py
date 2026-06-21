@@ -11,7 +11,7 @@ How it works:
 RISK_RULES = [
     # (condition, points, human-readable factor description)
     (lambda i: i["priority"] == 1,
-     25, "High priority incident"),
+     35, "High priority incident"),
 
     (lambda i: i["requires_road_closure"] == 1,
      20, "Road closure required"),
@@ -23,7 +23,7 @@ RISK_RULES = [
      10, "Night-time incident (reduced visibility)"),
 
     (lambda i: i["event_type"] == 1,
-     15, "Major event type"),
+     25, "Major event type"),
 
     (lambda i: i["veh_type"] in [5, 6, 7, 8, 9],
      10, "Heavy vehicle involved"),
@@ -35,7 +35,7 @@ RISK_RULES = [
 
 def get_risk_level(score: int) -> str:
     """Convert numeric score to risk level label (HIGH or LOW)."""
-    if score >= 50:
+    if score >= 40:
         return "HIGH"
     return "LOW"
 
