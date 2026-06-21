@@ -397,3 +397,4 @@ def generate_route_map(
 </html>"""
 
     return html
+

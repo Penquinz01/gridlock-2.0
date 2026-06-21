@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Activity, AlertCircle, CheckCircle, Truck } from 'lucide-react';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
 
 const EVENT_CAUSE_MAP = {
   0: 'Debris', 1: 'Fog', 2: 'Vehicle Crash', 3: 'Congestion', 4: 'Road Construction', 

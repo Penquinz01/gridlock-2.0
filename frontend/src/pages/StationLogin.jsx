@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
 
 const StationLogin = () => {
   const [stationId, setStationId] = useState('');
