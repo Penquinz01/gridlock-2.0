@@ -204,11 +204,13 @@ const UserRole = () => {
                 onChange={handleInputChange}
               >
                 <option value="">Select Vehicle</option>
-                {Object.entries(VEHICLE_TYPE).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
+                {Object.entries(VEHICLE_TYPE)
+                  .filter(([value]) => parseInt(value, 10) <= 9)
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
               </select>
             </div>
 
