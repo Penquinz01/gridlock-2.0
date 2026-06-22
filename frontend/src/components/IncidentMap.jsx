@@ -214,7 +214,6 @@ const OsmIncidentMap = ({
 
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative', minHeight: '500px', backgroundColor: '#000000', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-      <MapSearchBar fetchSuggestions={fetchSuggestions} onSelectPlace={handleSelectPlace} />
 
       <MapContainer
         center={[centerLat, centerLng]}
@@ -383,6 +382,10 @@ const MapplsIncidentMap = ({
       position: { lat, lng },
       fitbounds: false,
       popupHtml: '<div style="color:#000;font-weight:bold;">Incident Location Logged</div>',
+      popupOptions: {
+        openPopup: true,
+        autoPan: false,
+      },
     });
   };
 
@@ -433,6 +436,7 @@ const MapplsIncidentMap = ({
           properties: {
             center: [centerLat, centerLng],
             zoom: 12,
+            clickTolerance: 5,
           },
         });
 
@@ -444,8 +448,9 @@ const MapplsIncidentMap = ({
           renderHotspots();
 
           const handleClick = (event) => {
-            const lat = event?.latlng?.lat ?? event?.latLng?.lat ?? event?.lat;
-            const lng = event?.latlng?.lng ?? event?.latLng?.lng ?? event?.lng;
+            console.log('Mappls click event:', event);
+            const lat = event?.lngLat?.lat ?? event?.latlng?.lat ?? event?.latLng?.lat ?? event?.lat;
+            const lng = event?.lngLat?.lng ?? event?.latlng?.lng ?? event?.latLng?.lng ?? event?.lng;
             if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
             setClickedPos({ lat, lng });
@@ -498,7 +503,6 @@ const MapplsIncidentMap = ({
 
   return (
     <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative', minHeight: '500px', backgroundColor: '#000000', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-      <MapSearchBar fetchSuggestions={fetchSuggestions} onSelectPlace={handleSelectPlace} />
 
       {!isMapLoaded && (
         <div style={{

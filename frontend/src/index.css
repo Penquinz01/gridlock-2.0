@@ -370,3 +370,10 @@ input[type="checkbox"]:checked::before {
   filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(110%);
 }
 
+/* MapMyIndia (Mappls) custom pointer cursor */
+#incident-map-mappls canvas,
+#incident-map-mappls .mapboxgl-canvas-container,
+#incident-map-mappls .maplibregl-canvas-container {
+  cursor: pointer !important;
+}
+
