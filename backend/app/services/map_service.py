@@ -223,8 +223,12 @@ def _search_photon(query: str, limit: int) -> list[dict]:
         "bbox": f"{MIN_LON},{MIN_LAT},{MAX_LON},{MAX_LAT}",
     }
 
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
     try:
-        resp = requests.get("https://photon.komoot.io/api/", params=params, timeout=8)
+        resp = requests.get("https://photon.komoot.io/api/", params=params, headers=headers, timeout=8)
         resp.raise_for_status()
         data = resp.json()
     except Exception as e:

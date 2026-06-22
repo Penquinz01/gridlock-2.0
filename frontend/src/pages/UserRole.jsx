@@ -4,8 +4,10 @@ import { MapPin, AlertTriangle, Send, Activity, Lock, Unlock, Check, Search } fr
 import IncidentMap from '../components/IncidentMap';
 import { EVENT_CAUSE, VEHICLE_TYPE } from '../utils/mappings';
 
-//const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000'
+    : 'https://gridlock-backend.janbaas.me');
 
 const UserRole = () => {
   const [reportData, setReportData] = useState({
@@ -88,7 +90,7 @@ const UserRole = () => {
 
   useEffect(() => {
     const query = routeParams.origin.name;
-    if (!query || query.includes(',') || routeParams.origin.confirmed) {
+    if (!query || query.includes(',') || routeParams.origin.confirmed || (routeParams.origin.lat && routeParams.origin.lng)) {
       setOriginSuggestions([]);
       return;
     }
@@ -97,11 +99,11 @@ const UserRole = () => {
       setOriginSuggestions(results);
     }, 300);
     return () => clearTimeout(delayDebounce);
-  }, [routeParams.origin.name, routeParams.origin.confirmed]);
+  }, [routeParams.origin.name, routeParams.origin.confirmed, routeParams.origin.lat, routeParams.origin.lng]);
 
   useEffect(() => {
     const query = routeParams.destination.name;
-    if (!query || query.includes(',') || routeParams.destination.confirmed) {
+    if (!query || query.includes(',') || routeParams.destination.confirmed || (routeParams.destination.lat && routeParams.destination.lng)) {
       setDestSuggestions([]);
       return;
     }
@@ -110,7 +112,7 @@ const UserRole = () => {
       setDestSuggestions(results);
     }, 300);
     return () => clearTimeout(delayDebounce);
-  }, [routeParams.destination.name, routeParams.destination.confirmed]);
+  }, [routeParams.destination.name, routeParams.destination.confirmed, routeParams.destination.lat, routeParams.destination.lng]);
 
   const handleOriginSearchChange = (e) => {
     const val = e.target.value;
@@ -483,34 +485,39 @@ const UserRole = () => {
                   </button>
                 )
               )}
+              {/* Autocomplete suggestions */}
+              {!routeParams.origin.confirmed && originSuggestions.length > 0 && (
+                <ul className="suggestions-list" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: 'rgba(10, 10, 10, 0.98)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 'var(--radius-md)',
+                  listStyle: 'none',
+                  padding: '4px 0',
+                  margin: '4px 0 0 0',
+                  maxHeight: '150px',
+                  overflowY: 'auto',
+                  zIndex: 1010,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                }}>
+                  {originSuggestions.map((s, idx) => (
+                    <li 
+                      key={idx} 
+                      onClick={() => selectSuggestion('origin', s)}
+                      style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-light)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      <strong style={{ fontSize: '0.85rem' }}>{s.name}</strong>
+                      {s.address && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.address}</div>}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {/* Autocomplete suggestions */}
-            {!routeParams.origin.confirmed && originSuggestions.length > 0 && (
-              <ul className="suggestions-list" style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 'var(--radius-md)',
-                listStyle: 'none',
-                padding: '4px 0',
-                margin: '4px 0 0 0',
-                maxHeight: '150px',
-                overflowY: 'auto',
-                zIndex: 1010
-              }}>
-                {originSuggestions.map((s, idx) => (
-                  <li 
-                    key={idx} 
-                    onClick={() => selectSuggestion('origin', s)}
-                    style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-light)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    <strong style={{ fontSize: '0.85rem' }}>{s.name}</strong>
-                    {s.address && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.address}</div>}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Destination field */}
@@ -549,34 +556,39 @@ const UserRole = () => {
                   </button>
                 )
               )}
+              {/* Autocomplete suggestions */}
+              {!routeParams.destination.confirmed && destSuggestions.length > 0 && (
+                <ul className="suggestions-list" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: 'rgba(10, 10, 10, 0.98)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 'var(--radius-md)',
+                  listStyle: 'none',
+                  padding: '4px 0',
+                  margin: '4px 0 0 0',
+                  maxHeight: '150px',
+                  overflowY: 'auto',
+                  zIndex: 1010,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                }}>
+                  {destSuggestions.map((s, idx) => (
+                    <li 
+                      key={idx} 
+                      onClick={() => selectSuggestion('destination', s)}
+                      style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-light)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      <strong style={{ fontSize: '0.85rem' }}>{s.name}</strong>
+                      {s.address && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.address}</div>}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {/* Autocomplete suggestions */}
-            {!routeParams.destination.confirmed && destSuggestions.length > 0 && (
-              <ul className="suggestions-list" style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 'var(--radius-md)',
-                listStyle: 'none',
-                padding: '4px 0',
-                margin: '4px 0 0 0',
-                maxHeight: '150px',
-                overflowY: 'auto',
-                zIndex: 1010
-              }}>
-                {destSuggestions.map((s, idx) => (
-                  <li 
-                    key={idx} 
-                    onClick={() => selectSuggestion('destination', s)}
-                    style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-light)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    <strong style={{ fontSize: '0.85rem' }}>{s.name}</strong>
-                    {s.address && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.address}</div>}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Find Safest Route button */}
