@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, CircleMarker, Tooltip, useMapEvents, useMap, Polyline } from 'react-leaflet';
 import { mappls, mappls_plugin } from 'mappls-web-maps';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -165,21 +165,33 @@ const MapSearchBar = ({ fetchSuggestions, onSelectPlace }) => {
   );
 };
 
-const MapController = ({ targetCenter }) => {
+const MapController = ({ targetCenter, routeBounds }) => {
   const map = useMap();
   useEffect(() => {
     if (targetCenter) {
       map.flyTo(targetCenter, 14, { duration: 1.5 });
     }
   }, [targetCenter, map]);
+
+  useEffect(() => {
+    if (routeBounds && routeBounds.length > 0) {
+      map.fitBounds(routeBounds, { padding: [50, 50] });
+    }
+  }, [routeBounds, map]);
+
   return null;
 };
 
 const MapEvents = ({ onMapClick, setClickedPos }) => {
+  const onMapClickRef = useRef(onMapClick);
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
+
   useMapEvents({
     click(e) {
-      if (onMapClick) {
-        onMapClick(e.latlng.lat, e.latlng.lng);
+      if (onMapClickRef.current) {
+        onMapClickRef.current(e.latlng.lat, e.latlng.lng);
         setClickedPos([e.latlng.lat, e.latlng.lng]);
       }
     },
@@ -193,6 +205,9 @@ const OsmIncidentMap = ({
   defaultLng,
   hotspots,
   onMapClick,
+  routeCoordinates = null,
+  originCoords = null,
+  destCoords = null,
 }) => {
   const [clickedPos, setClickedPos] = useState(null);
   const [targetCenter, setTargetCenter] = useState(null);
@@ -220,7 +235,7 @@ const OsmIncidentMap = ({
         zoom={12}
         style={{ width: '100%', height: '100%', zIndex: 1 }}
       >
-        <MapController targetCenter={targetCenter} />
+        <MapController targetCenter={targetCenter} routeBounds={routeCoordinates} />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -233,6 +248,26 @@ const OsmIncidentMap = ({
           <Marker position={clickedPos}>
             <Tooltip permanent direction="top" offset={[0, -20]}>
               <div style={{ color: '#000', fontWeight: 'bold' }}>Incident Location Logged</div>
+            </Tooltip>
+          </Marker>
+        )}
+
+        {routeCoordinates && routeCoordinates.length > 0 && (
+          <Polyline positions={routeCoordinates} color="#2196F3" weight={5} opacity={0.8} />
+        )}
+
+        {originCoords && (
+          <Marker position={[originCoords.lat, originCoords.lng]}>
+            <Tooltip permanent direction="top" offset={[0, -20]}>
+              <div style={{ color: '#2e7d32', fontWeight: 'bold' }}>Origin</div>
+            </Tooltip>
+          </Marker>
+        )}
+
+        {destCoords && (
+          <Marker position={[destCoords.lat, destCoords.lng]}>
+            <Tooltip permanent direction="top" offset={[0, -20]}>
+              <div style={{ color: '#d32f2f', fontWeight: 'bold' }}>Destination</div>
             </Tooltip>
           </Marker>
         )}
@@ -262,12 +297,23 @@ const MapplsIncidentMap = ({
   hotspots,
   onMapClick,
   onInitFail,
+  routeCoordinates = null,
+  originCoords = null,
+  destCoords = null,
 }) => {
   const mapRef = useRef(null);
   const overlaysRef = useRef([]);
   const incidentMarkerRef = useRef(null);
+  const routePolylineRef = useRef(null);
+  const originMarkerRef = useRef(null);
+  const destMarkerRef = useRef(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [clickedPos, setClickedPos] = useState(null);
+
+  const onMapClickRef = useRef(onMapClick);
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
 
   const centerLat = parseCoordinate(defaultLat, BANGALORE_CENTER.lat);
   const centerLng = parseCoordinate(defaultLng, BANGALORE_CENTER.lng);
@@ -343,7 +389,119 @@ const MapplsIncidentMap = ({
       }
       incidentMarkerRef.current = null;
     }
+
+    if (routePolylineRef.current) {
+      try {
+        if (routePolylineRef.current.remove) {
+          routePolylineRef.current.remove();
+        } else {
+          mapplsClassObject.removeLayer({ map: mapRef.current, layer: routePolylineRef.current });
+        }
+      } catch (err) {}
+      routePolylineRef.current = null;
+    }
+
+    if (originMarkerRef.current) {
+      try {
+        if (originMarkerRef.current.remove) {
+          originMarkerRef.current.remove();
+        } else {
+          mapplsClassObject.removeLayer({ map: mapRef.current, layer: originMarkerRef.current });
+        }
+      } catch (err) {}
+      originMarkerRef.current = null;
+    }
+
+    if (destMarkerRef.current) {
+      try {
+        if (destMarkerRef.current.remove) {
+          destMarkerRef.current.remove();
+        } else {
+          mapplsClassObject.removeLayer({ map: mapRef.current, layer: destMarkerRef.current });
+        }
+      } catch (err) {}
+      destMarkerRef.current = null;
+    }
   };
+
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+
+    if (routePolylineRef.current) {
+      try {
+        if (routePolylineRef.current.remove) {
+          routePolylineRef.current.remove();
+        } else {
+          mapplsClassObject.removeLayer({ map: mapRef.current, layer: routePolylineRef.current });
+        }
+      } catch (err) {}
+      routePolylineRef.current = null;
+    }
+
+    if (routeCoordinates && routeCoordinates.length > 0) {
+      try {
+        const pathCoords = routeCoordinates.map(pt => ({ lat: pt[0], lng: pt[1] }));
+        routePolylineRef.current = mapplsClassObject.Polyline({
+          map: mapRef.current,
+          path: pathCoords,
+          strokeColor: '#2196F3',
+          strokeOpacity: 0.9,
+          strokeWeight: 5,
+          fitbounds: true
+        });
+      } catch (err) {
+        console.error('Failed to draw Mappls route polyline:', err);
+      }
+    }
+
+    if (originMarkerRef.current) {
+      try {
+        if (originMarkerRef.current.remove) {
+          originMarkerRef.current.remove();
+        } else {
+          mapplsClassObject.removeLayer({ map: mapRef.current, layer: originMarkerRef.current });
+        }
+      } catch (err) {}
+      originMarkerRef.current = null;
+    }
+
+    if (originCoords) {
+      try {
+        originMarkerRef.current = mapplsClassObject.Marker({
+          map: mapRef.current,
+          position: { lat: originCoords.lat, lng: originCoords.lng },
+          fitbounds: false,
+          popupHtml: '<div style="color:#2e7d32;font-weight:bold;">Origin</div>',
+        });
+      } catch (err) {
+        console.error('Failed to place Mappls origin marker:', err);
+      }
+    }
+
+    if (destMarkerRef.current) {
+      try {
+        if (destMarkerRef.current.remove) {
+          destMarkerRef.current.remove();
+        } else {
+          mapplsClassObject.removeLayer({ map: mapRef.current, layer: destMarkerRef.current });
+        }
+      } catch (err) {}
+      destMarkerRef.current = null;
+    }
+
+    if (destCoords) {
+      try {
+        destMarkerRef.current = mapplsClassObject.Marker({
+          map: mapRef.current,
+          position: { lat: destCoords.lat, lng: destCoords.lng },
+          fitbounds: false,
+          popupHtml: '<div style="color:#d32f2f;font-weight:bold;">Destination</div>',
+        });
+      } catch (err) {
+        console.error('Failed to place Mappls destination marker:', err);
+      }
+    }
+  }, [routeCoordinates, originCoords, destCoords, isMapLoaded]);
 
   const flyTo = (lat, lng) => {
     const map = mapRef.current;
@@ -471,8 +629,8 @@ const MapplsIncidentMap = ({
             if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
             setClickedPos({ lat, lng });
-            if (onMapClick) {
-              onMapClick(lat, lng);
+            if (onMapClickRef.current) {
+              onMapClickRef.current(lat, lng);
             }
             placeIncidentMarker(lat, lng);
           };
@@ -553,6 +711,9 @@ const IncidentMap = ({
   defaultLng,
   hotspots = [],
   onMapClick = null,
+  routeCoordinates = null,
+  originCoords = null,
+  destCoords = null,
 }) => {
   const [mapProvider, setMapProvider] = useState(null);
   const [mapplsConfig, setMapplsConfig] = useState(null);
@@ -609,7 +770,7 @@ const IncidentMap = ({
 
   if (mapProvider === null) {
     return (
-      <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative', minHeight: '500px', backgroundColor: '#000000', borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+      <div className="map-container" style={{ width: '100%', height: '100%', position: 'relative', minHeight: '500px', backgroundColor: '#000000', borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyIntent: 'center', color: 'var(--text-muted)' }}>
         Loading map...
       </div>
     );
@@ -625,6 +786,9 @@ const IncidentMap = ({
         hotspots={hotspots}
         onMapClick={onMapClick}
         onInitFail={() => setMapplsFailed(true)}
+        routeCoordinates={routeCoordinates}
+        originCoords={originCoords}
+        destCoords={destCoords}
       />
     );
   }
@@ -636,6 +800,9 @@ const IncidentMap = ({
       defaultLng={defaultLng}
       hotspots={hotspots}
       onMapClick={onMapClick}
+      routeCoordinates={routeCoordinates}
+      originCoords={originCoords}
+      destCoords={destCoords}
     />
   );
 };

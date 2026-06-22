@@ -305,3 +305,28 @@ class FeedbackResponse(BaseModel):
     status: str = "RESOLVED"
 
 
+# ─── Routing ───────────────────────────────────────────────────
+
+class Coordinate(BaseModel):
+    latitude: float = Field(..., ge=12.7, le=13.4, description="Latitude (Bengaluru district: ~12.7 to ~13.4)")
+    longitude: float = Field(..., ge=77.2, le=77.9, description="Longitude (Bengaluru district: ~77.2 to ~77.9)")
+
+
+class RouteInput(BaseModel):
+    origin: Coordinate
+    destination: Coordinate
+
+
+class RouteResponse(BaseModel):
+    route_id: str
+    distance_km: float
+    duration_minutes: float
+    route_coordinates: list[list[float]]
+    incidents_on_route: list[dict]
+    is_clean_route: bool
+    warnings: list[str]
+    map_url: str
+    alternatives_checked: int
+
+
+
