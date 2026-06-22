@@ -254,6 +254,25 @@ class SimplifiedAnalyzeResponse(BaseModel):
     diversion_map_url: str
 
 
+# ─── Map ───────────────────────────────────────────────────────
+
+class MapConfigResponse(BaseModel):
+    provider: str = Field(..., description="mappls or osm")
+    token: Optional[str] = None
+    auth_type: Optional[str] = Field(None, description="rest_key or oauth")
+
+
+class MapSearchSuggestion(BaseModel):
+    name: str
+    address: Optional[str] = None
+    latitude: float
+    longitude: float
+
+
+class MapSearchResponse(BaseModel):
+    suggestions: list[MapSearchSuggestion]
+
+
 # ─── Police Station Portal ─────────────────────────────────────
 
 class LoginRequest(BaseModel):

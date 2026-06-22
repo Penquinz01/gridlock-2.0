@@ -63,6 +63,24 @@ def resolve_location_features(latitude: float, longitude: float) -> dict:
 
 _mappls_token: str | None = None
 
+KARNATAKA_BBOX = (74.0, 11.5, 78.6, 18.5)  # min_lon, min_lat, max_lon, max_lat
+BANGALORE_CENTER = (12.9716, 77.5946)
+
+
+def get_mappls_credentials() -> dict | None:
+    """
+    Return Mappls credentials for map SDK and search APIs.
+
+    Returns:
+        {"token": str, "auth_type": "rest_key" | "oauth"} or None if unconfigured.
+    """
+    if MAPMYINDIA_API_KEY:
+        return {"token": MAPMYINDIA_API_KEY, "auth_type": "rest_key"}
+    token = _get_mappls_token()
+    if token:
+        return {"token": token, "auth_type": "oauth"}
+    return None
+
 
 def _get_mappls_token() -> str | None:
     """Obtain an OAuth2 token from Mappls. Cached in module-level var."""

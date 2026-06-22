@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Activity, AlertCircle, CheckCircle, Truck } from 'lucide-react';
 import { EVENT_CAUSE, POLICE_STATION } from '../utils/mappings';
 
-const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
+//const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
+const API_BASE_URL = 'http://localhost:8000';
 
 
 

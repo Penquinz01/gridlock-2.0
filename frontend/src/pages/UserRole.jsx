@@ -4,7 +4,8 @@ import { MapPin, AlertTriangle, Send } from 'lucide-react';
 import IncidentMap from '../components/IncidentMap';
 import { EVENT_CAUSE, VEHICLE_TYPE } from '../utils/mappings';
 
-const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
+//const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
+const API_BASE_URL = 'http://localhost:8000';
 
 const UserRole = () => {
   const [reportData, setReportData] = useState({
@@ -250,6 +251,7 @@ const UserRole = () => {
       {/* Main Map Area */}
       <div style={{ flex: 1, position: 'relative', height: '100%' }}>
         <IncidentMap 
+          apiBaseUrl={API_BASE_URL}
           useIframe={false} 
           foliumUrl={mapUrl} 
           defaultLat={reportData.latitude} 
