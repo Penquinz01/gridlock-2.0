@@ -403,8 +403,37 @@ const MapplsIncidentMap = ({
         strokeColor: '#eb9f46',
         strokeOpacity: 0.8,
         strokeWeight: 2,
-        popupHtml: hotspotPopupHtml(hs),
       });
+
+      if (circle && typeof circle.addListener === 'function') {
+        let hoverInfoWindow = null;
+        circle.addListener('mouseover', () => {
+          try {
+            hoverInfoWindow = mapplsClassObject.InfoWindow({
+              map: mapRef.current,
+              position: { lat: hs.latitude, lng: hs.longitude },
+              content: hotspotPopupHtml(hs),
+            });
+          } catch (err) {
+            console.error('Failed to open hover InfoWindow:', err);
+          }
+        });
+        circle.addListener('mouseout', () => {
+          if (hoverInfoWindow) {
+            try {
+              if (hoverInfoWindow.remove) {
+                hoverInfoWindow.remove();
+              } else {
+                mapplsClassObject.removeLayer({ map: mapRef.current, layer: hoverInfoWindow });
+              }
+            } catch (err) {
+              console.warn('Failed to remove hover InfoWindow:', err);
+            }
+            hoverInfoWindow = null;
+          }
+        });
+      }
+
       overlaysRef.current.push(circle);
     });
 
