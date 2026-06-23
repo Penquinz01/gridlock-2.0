@@ -4,7 +4,13 @@ Tests for the routing service — incident-aware route calculation.
 
 import pytest
 from unittest.mock import patch, MagicMock
-from app.services.routing_service import haversine, decode_polyline, score_route, select_best_route
+from app.services.routing_service import (
+    haversine,
+    decode_polyline,
+    score_route,
+    select_best_route,
+    min_distance_to_route_m,
+)
 
 
 # ─── Haversine Tests ─────────────────────────────────────────────
@@ -141,6 +147,24 @@ class TestScoreRoute:
         score_high, _ = score_route(route_near_high, high_incident)
 
         assert score_low < score_high
+
+    def test_route_segment_crossing_incident_is_detected(self):
+        """Incident between sparse route points should still count as on-route."""
+        route = [[13.04, 77.518], [13.04, 77.528]]
+        incidents = [{
+            "id": "INC-MIDPOINT",
+            "latitude": 13.04,
+            "longitude": 77.523,
+            "priority": 1,
+            "road_closure": 0,
+        }]
+
+        min_dist = min_distance_to_route_m(route, 13.04, 77.523)
+        score, crossed = score_route(route, incidents)
+
+        assert min_dist < 1
+        assert score == 100.0
+        assert len(crossed) == 1
 
 
 # ─── Best Route Selection Tests ─────────────────────────────────

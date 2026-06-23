@@ -26,6 +26,57 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
+def distance_to_route_segment_m(
+    point_lat: float,
+    point_lon: float,
+    start_lat: float,
+    start_lon: float,
+    end_lat: float,
+    end_lon: float,
+) -> float:
+    """Approximate shortest distance from a point to a route segment in meters."""
+    mean_lat_rad = math.radians((point_lat + start_lat + end_lat) / 3)
+    meters_per_degree_lat = 111_320
+    meters_per_degree_lon = 111_320 * math.cos(mean_lat_rad)
+
+    point_x = point_lon * meters_per_degree_lon
+    point_y = point_lat * meters_per_degree_lat
+    start_x = start_lon * meters_per_degree_lon
+    start_y = start_lat * meters_per_degree_lat
+    end_x = end_lon * meters_per_degree_lon
+    end_y = end_lat * meters_per_degree_lat
+
+    segment_x = end_x - start_x
+    segment_y = end_y - start_y
+    segment_len_sq = segment_x * segment_x + segment_y * segment_y
+
+    if segment_len_sq == 0:
+        return math.hypot(point_x - start_x, point_y - start_y)
+
+    t = ((point_x - start_x) * segment_x + (point_y - start_y) * segment_y) / segment_len_sq
+    t = max(0, min(1, t))
+    closest_x = start_x + t * segment_x
+    closest_y = start_y + t * segment_y
+    return math.hypot(point_x - closest_x, point_y - closest_y)
+
+
+def min_distance_to_route_m(route_coords: list[list[float]], lat: float, lon: float) -> float:
+    """Find the shortest distance from a coordinate to the route polyline."""
+    if not route_coords:
+        return float("inf")
+
+    min_dist = min(haversine(pt[0], pt[1], lat, lon) for pt in route_coords)
+    for start, end in zip(route_coords, route_coords[1:]):
+        min_dist = min(
+            min_dist,
+            distance_to_route_segment_m(lat, lon, start[0], start[1], end[0], end[1]),
+        )
+        if min_dist < 50:
+            break
+
+    return min_dist
+
+
 # ─── Decode Polyline ─────────────────────────────────────────────
 
 def decode_polyline(encoded: str) -> list[list[float]]:
@@ -180,13 +231,7 @@ def score_route(route_coords: list[list[float]], incidents: list[dict]) -> tuple
         is_high = inc.get("priority", 0) == 1
         is_closed = inc.get("road_closure", 0) == 1
 
-        # Find minimum distance from any route point to this incident
-        min_dist = float("inf")
-        for pt in route_coords:
-            d = haversine(pt[0], pt[1], inc_lat, inc_lon)
-            min_dist = min(min_dist, d)
-            if d < 50:  # early exit — definitely intersects
-                break
+        min_dist = min_distance_to_route_m(route_coords, inc_lat, inc_lon)
 
         if min_dist < INCIDENT_ZONE_RADIUS_M:
             if is_closed:
