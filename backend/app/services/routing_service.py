@@ -162,6 +162,8 @@ def fetch_routes(origin_lat: float, origin_lon: float, dest_lat: float, dest_lon
 # ─── Score Routes Against Incidents ──────────────────────────────
 
 INCIDENT_ZONE_RADIUS_M = 500  # meters
+MAX_CLEAN_ROUTE_DISTANCE_RATIO = 1.30
+MAX_CLEAN_ROUTE_DISTANCE_EXTRA_M = 5000
 
 def score_route(route_coords: list[list[float]], incidents: list[dict]) -> tuple[float, list[dict]]:
     """
@@ -198,10 +200,85 @@ def score_route(route_coords: list[list[float]], incidents: list[dict]) -> tuple
             incidents_crossed.append({
                 "incident_id": inc["id"],
                 "priority": "HIGH" if is_high else "LOW",
+                "road_closure": bool(is_closed),
                 "proximity_meters": round(min_dist, 1),
             })
 
     return total_score, incidents_crossed
+
+
+def _max_acceptable_clean_distance(shortest_distance_m: float) -> float:
+    """Return the longest clean route that is still considered a reasonable detour."""
+    extra_allowance = min(
+        shortest_distance_m * (MAX_CLEAN_ROUTE_DISTANCE_RATIO - 1),
+        MAX_CLEAN_ROUTE_DISTANCE_EXTRA_M,
+    )
+    return shortest_distance_m + extra_allowance
+
+
+def _incident_counts(incidents_crossed: list[dict]) -> dict:
+    """Count incident types for route selection priority."""
+    high_count = sum(1 for incident in incidents_crossed if incident["priority"] == "HIGH")
+    low_count = sum(1 for incident in incidents_crossed if incident["priority"] == "LOW")
+    closure_count = sum(1 for incident in incidents_crossed if incident.get("road_closure"))
+    return {
+        "total": len(incidents_crossed),
+        "high": high_count,
+        "low": low_count,
+        "closures": closure_count,
+    }
+
+
+def select_best_route(routes: list[dict], incidents: list[dict]) -> tuple[dict, list[dict]]:
+    """
+    Select the best route with explicit safety priority:
+    1. Prefer a clean route if it is not a huge detour from the shortest route.
+    2. If no acceptable clean route exists, minimize incident count.
+    3. For equal incident counts, prefer fewer closures/high-priority incidents.
+    4. Use distance and duration only as final tie-breakers.
+    """
+    shortest_distance_m = min(route["distance_m"] for route in routes)
+    max_clean_distance_m = _max_acceptable_clean_distance(shortest_distance_m)
+    scored_routes = []
+
+    for route in routes:
+        score, crossed = score_route(route["coordinates"], incidents)
+        scored_routes.append({
+            "route": route,
+            "score": score,
+            "incidents": crossed,
+            "counts": _incident_counts(crossed),
+        })
+
+    reasonable_routes = [
+        item for item in scored_routes
+        if item["route"]["distance_m"] <= max_clean_distance_m
+    ]
+    candidate_routes = reasonable_routes or scored_routes
+
+    clean_routes = [
+        item for item in candidate_routes
+        if item["counts"]["total"] == 0 and item["route"]["distance_m"] <= max_clean_distance_m
+    ]
+    if clean_routes:
+        selected = min(
+            clean_routes,
+            key=lambda item: (item["route"]["distance_m"], item["route"]["duration_s"]),
+        )
+        return selected["route"], selected["incidents"]
+
+    selected = min(
+        candidate_routes,
+        key=lambda item: (
+            item["counts"]["total"],
+            item["counts"]["closures"],
+            item["counts"]["high"],
+            item["score"],
+            item["route"]["distance_m"],
+            item["route"]["duration_s"],
+        ),
+    )
+    return selected["route"], selected["incidents"]
 
 
 # ─── Main Orchestrator ───────────────────────────────────────────
@@ -219,17 +296,8 @@ def find_best_route(origin_lat: float, origin_lon: float, dest_lat: float, dest_
     if not routes:
         raise RuntimeError("No routes returned from routing API")
 
-    # 3. Score each route
-    best_route = None
-    best_score = float("inf")
-    best_incidents = []
-
-    for route in routes:
-        score, crossed = score_route(route["coordinates"], incidents)
-        if score < best_score:
-            best_score = score
-            best_route = route
-            best_incidents = crossed
+    # 3. Choose the safest reasonable route
+    best_route, best_incidents = select_best_route(routes, incidents)
 
     # 4. Build warnings
     warnings = []

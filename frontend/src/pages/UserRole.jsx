@@ -4,11 +4,7 @@ import { MapPin, AlertTriangle, Send, Activity, Lock, Unlock, Check, Search } fr
 import IncidentMap from '../components/IncidentMap';
 import { EVENT_CAUSE, VEHICLE_TYPE } from '../utils/mappings';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8000'
-    : 'https://gridlock-backend.janbaas.me');
-
+const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
 const UserRole = () => {
   const [reportData, setReportData] = useState({
     latitude: '12.9716',
