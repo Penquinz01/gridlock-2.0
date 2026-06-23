@@ -144,6 +144,7 @@ class Hotspot(BaseModel):
     corridor_name: Optional[str] = None
     incident_count: int
     high_priority_pct: float
+    causes: Optional[dict[str, int]] = None
 
 
 

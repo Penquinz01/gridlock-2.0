@@ -9,7 +9,8 @@ import sqlite3
 import pandas as pd
 import numpy as np
 from app.config import DB_PATH
-from app.utils.mappings import CORRIDOR, get_label
+from app.utils.mappings import CORRIDOR, EVENT_CAUSE, get_label
+from app.database import get_other_incident
 
 
 def get_hotspots(
@@ -76,6 +77,36 @@ def get_hotspots(
     hotspots = []
     for _, row in grouped.iterrows():
         corridor_id = int(row["corridor"])
+        lat_r = row["lat_round"]
+        lon_r = row["lon_round"]
+
+        # Retrieve the original incidents belonging to this cluster
+        group_incidents = df[
+            (df["lat_round"] == lat_r) &
+            (df["lon_round"] == lon_r) &
+            (df["corridor"] == corridor_id)
+        ]
+
+        causes_counts = {}
+        for _, inc in group_incidents.iterrows():
+            cause_code = int(inc["event_cause"])
+            if cause_code == 17:
+                custom_inc = get_other_incident(inc["id"])
+                if custom_inc and custom_inc.get("description"):
+                    desc = custom_inc["description"]
+                    if len(desc) > 30:
+                        desc = desc[:27] + "..."
+                    cause_label = f"Other ({desc})"
+                else:
+                    cause_label = "Other"
+            else:
+                cause_label = get_label(EVENT_CAUSE, cause_code)
+            
+            causes_counts[cause_label] = causes_counts.get(cause_label, 0) + 1
+
+        # Sort by count descending
+        sorted_causes = dict(sorted(causes_counts.items(), key=lambda x: x[1], reverse=True))
+
         hotspots.append({
             "latitude": round(float(row["avg_lat"]), 6),
             "longitude": round(float(row["avg_lon"]), 6),
@@ -83,6 +114,7 @@ def get_hotspots(
             "corridor_name": get_label(CORRIDOR, corridor_id),
             "incident_count": int(row["incident_count"]),
             "high_priority_pct": float(row["high_priority_pct"]),
+            "causes": sorted_causes,
         })
 
     return {

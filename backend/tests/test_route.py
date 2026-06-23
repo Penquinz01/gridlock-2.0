@@ -209,8 +209,8 @@ class TestSelectBestRoute:
             },
             {
                 "coordinates": [[13.20, 77.70]],
-                "distance_m": 20000,
-                "duration_s": 2400,
+                "distance_m": 35000,
+                "duration_s": 4200,
             },
         ]
         incidents = [{
@@ -329,3 +329,18 @@ class TestSelectBestRoute:
         assert score_far < score_close
         assert score_close == 1000.0
         assert 0.0 < score_far < 1000.0
+
+    def test_score_route_includes_cause(self):
+        """score_route should record the custom cause label resolved from _get_incident_cause_label."""
+        route = [[13.02, 77.535]]
+        incidents = [{
+            "id": "INC-TEST-CAUSE",
+            "latitude": 13.02,
+            "longitude": 77.535,
+            "priority": 1,
+            "road_closure": 0,
+            "event_cause": 2,  # Accident
+        }]
+        score, crossed = score_route(route, incidents)
+        assert len(crossed) == 1
+        assert crossed[0]["cause"] == "Accident"

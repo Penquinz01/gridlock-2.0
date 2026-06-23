@@ -21,15 +21,28 @@ const parseCoordinate = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const hotspotPopupHtml = (hs) => `
-  <div style="padding:2px;color:#000;">
-    <strong style="font-size:14px;margin-bottom:4px;display:block;color:#eb9f46;">
-      ${hs.corridor_name || `Corridor ${hs.corridor}`}
-    </strong>
-    <div style="font-size:12px;margin-bottom:2px;">Incidents: <b>${hs.incident_count}</b></div>
-    <div style="font-size:12px;">High Priority: <b>${(hs.high_priority_pct * 100).toFixed(0)}%</b></div>
-  </div>
-`;
+const hotspotPopupHtml = (hs) => {
+  let causesHtml = '';
+  if (hs.causes && Object.keys(hs.causes).length > 0) {
+    causesHtml = `
+      <div style="margin-top:6px;border-top:1px solid #ddd;padding-top:4px;font-size:11px;color:#333;">
+        ${Object.entries(hs.causes)
+          .map(([cause, count]) => `<div>${cause}: <b>${count}</b></div>`)
+          .join('')}
+      </div>
+    `;
+  }
+  return `
+    <div style="padding:2px;color:#000;min-width:140px;">
+      <strong style="font-size:14px;margin-bottom:4px;display:block;color:#eb9f46;">
+        ${hs.corridor_name || `Corridor ${hs.corridor}`}
+      </strong>
+      <div style="font-size:12px;margin-bottom:2px;">Incidents: <b>${hs.incident_count}</b></div>
+      <div style="font-size:12px;margin-bottom:2px;">High Priority: <b>${(hs.high_priority_pct * 100).toFixed(0)}%</b></div>
+      ${causesHtml}
+    </div>
+  `;
+};
 
 const hotspotRadius = (incidentCount) => 80 + Math.min(incidentCount * 15, 170);
 
@@ -528,21 +541,33 @@ const MapplsIncidentMap = ({
         strokeColor: '#eb9f46',
         strokeOpacity: 0.8,
         strokeWeight: 2,
-        popupHtml: hotspotPopupHtml(hs),
-        popupOptions: {
-          autoPan: false,
-        },
       });
 
       if (circle && typeof circle.addListener === 'function') {
+        let hoverInfoWindow = null;
         circle.addListener('mouseover', () => {
-          if (typeof circle.openPopup === 'function') {
-            circle.openPopup();
+          try {
+            hoverInfoWindow = mapplsClassObject.InfoWindow({
+              map: mapRef.current,
+              position: { lat: hs.latitude, lng: hs.longitude },
+              content: hotspotPopupHtml(hs),
+            });
+          } catch (err) {
+            console.error('Failed to open hover InfoWindow:', err);
           }
         });
         circle.addListener('mouseout', () => {
-          if (typeof circle.closePopup === 'function') {
-            circle.closePopup();
+          if (hoverInfoWindow) {
+            try {
+              if (hoverInfoWindow.remove) {
+                hoverInfoWindow.remove();
+              } else {
+                mapplsClassObject.removeLayer({ map: mapRef.current, layer: hoverInfoWindow });
+              }
+            } catch (err) {
+              console.warn('Failed to remove hover InfoWindow:', err);
+            }
+            hoverInfoWindow = null;
           }
         });
       }

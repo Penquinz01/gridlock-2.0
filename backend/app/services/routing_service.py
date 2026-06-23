@@ -11,7 +11,8 @@ import requests
 from datetime import datetime
 
 from app.config import MAPMYINDIA_API_KEY, MAPS_DIR
-from app.database import get_active_incidents
+from app.database import get_active_incidents, get_other_incident
+from app.utils.mappings import EVENT_CAUSE, get_label
 
 
 # ─── Haversine Distance ─────────────────────────────────────────
@@ -213,8 +214,25 @@ def fetch_routes(origin_lat: float, origin_lon: float, dest_lat: float, dest_lon
 # ─── Score Routes Against Incidents ──────────────────────────────
 
 INCIDENT_ZONE_RADIUS_M = 500  # meters
-MAX_CLEAN_ROUTE_DISTANCE_RATIO = 1.30
-MAX_CLEAN_ROUTE_DISTANCE_EXTRA_M = 5000
+MAX_CLEAN_ROUTE_DISTANCE_RATIO = 2.0
+MAX_CLEAN_ROUTE_DISTANCE_EXTRA_M = 15000
+
+def _get_incident_cause_label(inc: dict) -> str:
+    cause_code = inc.get("event_cause")
+    if cause_code is None:
+        return "Incident"
+    
+    if cause_code == 17:
+        custom_inc = get_other_incident(inc["id"])
+        if custom_inc and custom_inc.get("description"):
+            desc = custom_inc["description"]
+            if len(desc) > 30:
+                desc = desc[:27] + "..."
+            return f"Other ({desc})"
+        return "Other"
+    
+    return get_label(EVENT_CAUSE, cause_code, "Incident")
+
 
 def score_route(route_coords: list[list[float]], incidents: list[dict]) -> tuple[float, list[dict]]:
     """
@@ -246,6 +264,7 @@ def score_route(route_coords: list[list[float]], incidents: list[dict]) -> tuple
             total_score += penalty * proximity_factor
             incidents_crossed.append({
                 "incident_id": inc["id"],
+                "cause": _get_incident_cause_label(inc),
                 "priority": "HIGH" if is_high else "LOW",
                 "road_closure": bool(is_closed),
                 "proximity_meters": round(min_dist, 1),
@@ -348,13 +367,11 @@ def find_best_route(origin_lat: float, origin_lon: float, dest_lat: float, dest_
 
     # 4. Build warnings
     warnings = []
-    if best_incidents:
-        high_count = sum(1 for i in best_incidents if i["priority"] == "HIGH")
-        low_count = sum(1 for i in best_incidents if i["priority"] == "LOW")
-        if high_count:
-            warnings.append(f"Route passes near {high_count} HIGH-priority incident(s)")
-        if low_count:
-            warnings.append(f"Route passes near {low_count} LOW-priority incident(s)")
+    for inc in best_incidents:
+        cause = inc.get("cause", "Incident")
+        priority = inc.get("priority", "HIGH")
+        prox = inc.get("proximity_meters", 0.0)
+        warnings.append(f"Route passes near {cause} ({priority} priority, {prox}m away)")
 
     # 5. Generate route ID and map
     route_id = f"ROUTE-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -412,6 +429,7 @@ def generate_route_map(
         color = "#FF0000" if (is_high or is_closed) else "#FFA500"
         radius = 200 if is_high else 500
         label = f"HIGH (Closed)" if is_closed else ("HIGH" if is_high else "LOW")
+        cause = _get_incident_cause_label(inc)
 
         incident_markers_js += f"""
             new mappls.Circle({{
@@ -428,7 +446,7 @@ def generate_route_map(
                 map: map,
                 position: {{lat: {inc['latitude']}, lng: {inc['longitude']}}},
                 fitbounds: false,
-                popupHtml: '<b>Incident: {inc["id"]}</b><br/>Priority: {label}'
+                popupHtml: '<b>Incident: {inc["id"]}</b><br/>Type: {cause}<br/>Priority: {label}'
             }});
 """
 
