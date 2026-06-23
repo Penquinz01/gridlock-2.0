@@ -312,9 +312,16 @@ class Coordinate(BaseModel):
     longitude: float = Field(..., ge=77.2, le=77.9, description="Longitude (Bengaluru district: ~77.2 to ~77.9)")
 
 
+class RouteAvoidPoint(Coordinate):
+    incident_id: Optional[str] = None
+    priority: int = Field(default=1, ge=0, le=1)
+    road_closure: int = Field(default=0, ge=0, le=1)
+
+
 class RouteInput(BaseModel):
     origin: Coordinate
     destination: Coordinate
+    avoid_points: list[RouteAvoidPoint] = Field(default_factory=list)
 
 
 class RouteResponse(BaseModel):
