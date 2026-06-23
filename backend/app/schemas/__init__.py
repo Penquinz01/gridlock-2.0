@@ -254,6 +254,25 @@ class SimplifiedAnalyzeResponse(BaseModel):
     diversion_map_url: str
 
 
+# ─── Map ───────────────────────────────────────────────────────
+
+class MapConfigResponse(BaseModel):
+    provider: str = Field(..., description="mappls or osm")
+    token: Optional[str] = None
+    auth_type: Optional[str] = Field(None, description="rest_key or oauth")
+
+
+class MapSearchSuggestion(BaseModel):
+    name: str
+    address: Optional[str] = None
+    latitude: float
+    longitude: float
+
+
+class MapSearchResponse(BaseModel):
+    suggestions: list[MapSearchSuggestion]
+
+
 # ─── Police Station Portal ─────────────────────────────────────
 
 class LoginRequest(BaseModel):
@@ -284,5 +303,30 @@ class FeedbackResponse(BaseModel):
     success: bool
     incident_id: str
     status: str = "RESOLVED"
+
+
+# ─── Routing ───────────────────────────────────────────────────
+
+class Coordinate(BaseModel):
+    latitude: float = Field(..., ge=12.7, le=13.4, description="Latitude (Bengaluru district: ~12.7 to ~13.4)")
+    longitude: float = Field(..., ge=77.2, le=77.9, description="Longitude (Bengaluru district: ~77.2 to ~77.9)")
+
+
+class RouteInput(BaseModel):
+    origin: Coordinate
+    destination: Coordinate
+
+
+class RouteResponse(BaseModel):
+    route_id: str
+    distance_km: float
+    duration_minutes: float
+    route_coordinates: list[list[float]]
+    incidents_on_route: list[dict]
+    is_clean_route: bool
+    warnings: list[str]
+    map_url: str
+    alternatives_checked: int
+
 
 

@@ -4,7 +4,7 @@ Tests for the routing service — incident-aware route calculation.
 
 import pytest
 from unittest.mock import patch, MagicMock
-from app.services.routing_service import haversine, decode_polyline, score_route
+from app.services.routing_service import haversine, decode_polyline, score_route, select_best_route
 
 
 # ─── Haversine Tests ─────────────────────────────────────────────
@@ -141,3 +141,144 @@ class TestScoreRoute:
         score_high, _ = score_route(route_near_high, high_incident)
 
         assert score_low < score_high
+
+
+# ─── Best Route Selection Tests ─────────────────────────────────
+
+class TestSelectBestRoute:
+    """Test route selection priority against incidents and detour size."""
+
+    def test_prefers_clean_route_when_detour_is_reasonable(self):
+        """A clean route within the detour threshold should beat a shorter route with incidents."""
+        routes = [
+            {
+                "coordinates": [[13.04, 77.518]],
+                "distance_m": 10000,
+                "duration_s": 1200,
+            },
+            {
+                "coordinates": [[13.20, 77.70]],
+                "distance_m": 12000,
+                "duration_s": 1500,
+            },
+        ]
+        incidents = [{
+            "id": "INC-LOW",
+            "latitude": 13.04,
+            "longitude": 77.518,
+            "priority": 0,
+            "road_closure": 0,
+        }]
+
+        route, crossed = select_best_route(routes, incidents)
+
+        assert route["distance_m"] == 12000
+        assert crossed == []
+
+    def test_rejects_clean_route_when_detour_is_huge(self):
+        """A huge clean detour should not beat a much shorter route with a low-priority incident."""
+        routes = [
+            {
+                "coordinates": [[13.04, 77.518]],
+                "distance_m": 10000,
+                "duration_s": 1200,
+            },
+            {
+                "coordinates": [[13.20, 77.70]],
+                "distance_m": 20000,
+                "duration_s": 2400,
+            },
+        ]
+        incidents = [{
+            "id": "INC-LOW",
+            "latitude": 13.04,
+            "longitude": 77.518,
+            "priority": 0,
+            "road_closure": 0,
+        }]
+
+        route, crossed = select_best_route(routes, incidents)
+
+        assert route["distance_m"] == 10000
+        assert len(crossed) == 1
+
+    def test_fallback_minimizes_incident_count_before_severity(self):
+        """When no acceptable clean route exists, fewer incidents beats lower total penalty."""
+        routes = [
+            {
+                "coordinates": [[13.04, 77.518], [13.041, 77.519]],
+                "distance_m": 10000,
+                "duration_s": 1200,
+            },
+            {
+                "coordinates": [[13.06, 77.53]],
+                "distance_m": 10500,
+                "duration_s": 1250,
+            },
+        ]
+        incidents = [
+            {
+                "id": "INC-LOW-1",
+                "latitude": 13.04,
+                "longitude": 77.518,
+                "priority": 0,
+                "road_closure": 0,
+            },
+            {
+                "id": "INC-LOW-2",
+                "latitude": 13.041,
+                "longitude": 77.519,
+                "priority": 0,
+                "road_closure": 0,
+            },
+            {
+                "id": "INC-HIGH",
+                "latitude": 13.06,
+                "longitude": 77.53,
+                "priority": 1,
+                "road_closure": 0,
+            },
+        ]
+
+        route, crossed = select_best_route(routes, incidents)
+
+        assert route["distance_m"] == 10500
+        assert len(crossed) == 1
+        assert crossed[0]["priority"] == "HIGH"
+
+    def test_fallback_prefers_low_priority_when_incident_count_matches(self):
+        """For equal incident counts, low-priority incidents beat high-priority incidents."""
+        routes = [
+            {
+                "coordinates": [[13.04, 77.518]],
+                "distance_m": 10000,
+                "duration_s": 1200,
+            },
+            {
+                "coordinates": [[13.06, 77.53]],
+                "distance_m": 10500,
+                "duration_s": 1250,
+            },
+        ]
+        incidents = [
+            {
+                "id": "INC-HIGH",
+                "latitude": 13.04,
+                "longitude": 77.518,
+                "priority": 1,
+                "road_closure": 0,
+            },
+            {
+                "id": "INC-LOW",
+                "latitude": 13.06,
+                "longitude": 77.53,
+                "priority": 0,
+                "road_closure": 0,
+            },
+        ]
+
+        route, crossed = select_best_route(routes, incidents)
+
+        assert route["distance_m"] == 10500
+        assert len(crossed) == 1
+        assert crossed[0]["priority"] == "LOW"
