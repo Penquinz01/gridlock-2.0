@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Activity, AlertCircle, CheckCircle, Truck } from 'lucide-react';
 import { EVENT_CAUSE, POLICE_STATION } from '../utils/mappings';
 
-const API_BASE_URL = 'https://gridlock-backend.janbaas.me';
-// const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://gridlock-backend.janbaas.me';
+
 
 
 const StationDashboard = () => {
   const [incidents, setIncidents] = useState([]);
+  const [historyIncidents, setHistoryIncidents] = useState([]);
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'history'
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('time'); // 'time' or 'risk'
   const [selectedIncident, setSelectedIncident] = useState(null);
@@ -30,10 +32,15 @@ const StationDashboard = () => {
       navigate('/login');
       return;
     }
-    fetchIncidents();
-  }, [stationId, token, navigate]);
+    if (activeTab === 'active') {
+      fetchActiveIncidents();
+    } else {
+      fetchHistoryIncidents();
+    }
+  }, [stationId, token, navigate, activeTab]);
 
-  const fetchIncidents = async () => {
+  const fetchActiveIncidents = async () => {
+    setLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/api/portal/incidents/${stationId}?status=ACTIVE`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -41,6 +48,36 @@ const StationDashboard = () => {
       setIncidents(response.data?.incidents || []);
     } catch (err) {
       console.error('Failed to fetch incidents', err);
+      if (err.response && err.response.status === 401) {
+        handleLogout();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchHistoryIncidents = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/portal/incidents/${stationId}?status=RESOLVED`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const resolved = response.data?.incidents || [];
+      const historyWithFeedback = await Promise.all(
+        resolved.map(async (inc) => {
+          try {
+            const fbRes = await axios.get(`${API_BASE_URL}/api/portal/incidents/${inc.id}/feedback`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            return { ...inc, feedback: fbRes.data };
+          } catch (e) {
+            return { ...inc, feedback: null };
+          }
+        })
+      );
+      setHistoryIncidents(historyWithFeedback);
+    } catch (err) {
+      console.error('Failed to fetch history', err);
       if (err.response && err.response.status === 401) {
         handleLogout();
       }
@@ -75,11 +112,60 @@ const StationDashboard = () => {
       });
       setSelectedIncident(null);
       setFeedback({ actual_officers: '', actual_barricades: '', actual_road_closure: false, actual_priority: false, feedback_notes: '' });
-      fetchIncidents(); // Refresh queue
+      fetchActiveIncidents(); // Refresh queue
     } catch (err) {
       console.error('Failed to submit feedback', err);
       alert('Failed to submit feedback. Please try again.');
     }
+  };
+
+  const renderHistoryTable = () => {
+    if (historyIncidents.length === 0) {
+      return (
+        <div className="glass-panel flex-col align-center justify-center p-6 text-muted" style={{ padding: 'var(--spacing-6)', textAlign: 'center' }}>
+          <CheckCircle size={48} color="var(--primary)" style={{ marginBottom: 'var(--spacing-4)' }} />
+          <h3 className="text-h3">No History</h3>
+          <p>You have no resolved incidents on record.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="glass-panel" style={{ overflowX: 'auto', borderRadius: 'var(--radius-lg)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: 'var(--bg-glass-hover)' }}>
+              <th style={{ padding: 'var(--spacing-3)', fontWeight: 600 }}>Resolved Time</th>
+              <th style={{ padding: 'var(--spacing-3)', fontWeight: 600 }}>Incident Type</th>
+              <th style={{ padding: 'var(--spacing-3)', fontWeight: 600 }}>Risk</th>
+              <th style={{ padding: 'var(--spacing-3)', fontWeight: 600 }}>Location</th>
+              <th style={{ padding: 'var(--spacing-3)', fontWeight: 600 }}>Officers</th>
+              <th style={{ padding: 'var(--spacing-3)', fontWeight: 600 }}>Barricades</th>
+              <th style={{ padding: 'var(--spacing-3)', fontWeight: 600 }}>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {historyIncidents.map((inc, idx) => (
+              <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                <td style={{ padding: 'var(--spacing-3)' }}>
+                  {inc.feedback?.submitted_at ? new Date(inc.feedback.submitted_at).toLocaleString() : 'N/A'}
+                </td>
+                <td style={{ padding: 'var(--spacing-3)' }}>{EVENT_CAUSE[inc.event_cause] || 'Unknown'}</td>
+                <td style={{ padding: 'var(--spacing-3)' }}>
+                  <span className={`badge ${inc.risk_level === 'HIGH' ? 'badge-critical' : (inc.risk_level === 'MEDIUM' ? 'badge-warning' : 'badge-success')}`}>
+                    {inc.risk_level || 'LOW'}
+                  </span>
+                </td>
+                <td style={{ padding: 'var(--spacing-3)' }}>{inc.latitude?.toFixed(4)}, {inc.longitude?.toFixed(4)}</td>
+                <td style={{ padding: 'var(--spacing-3)' }}>{inc.feedback?.actual_officers ?? 'N/A'}</td>
+                <td style={{ padding: 'var(--spacing-3)' }}>{inc.feedback?.actual_barricades ?? 'N/A'}</td>
+                <td style={{ padding: 'var(--spacing-3)' }}>{inc.feedback?.feedback_notes || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   return (
@@ -99,23 +185,42 @@ const StationDashboard = () => {
       {/* Main Board */}
       <div style={{ flex: 1, padding: 'var(--spacing-6)', overflowY: 'auto' }}>
         <div className="flex-row justify-between align-center" style={{ marginBottom: 'var(--spacing-6)' }}>
-          <h2 className="text-h2">Active Incidents</h2>
           <div className="flex-row gap-4 align-center">
-            <select 
-              className="input-field" 
-              style={{ width: 'auto', marginBottom: 0, padding: '0.5rem 2rem 0.5rem 1rem' }}
-              value={sortBy} 
-              onChange={(e) => setSortBy(e.target.value)}
+            <button 
+              className={`btn ${activeTab === 'active' ? 'btn-primary' : 'btn-ghost'}`} 
+              onClick={() => setActiveTab('active')}
             >
-              <option value="time">Sort by: Time (Newest First)</option>
-              <option value="risk">Sort by: Risk (High to Low)</option>
-            </select>
-            <button className="btn btn-primary" onClick={fetchIncidents}>Refresh Queue</button>
+              Active Incidents
+            </button>
+            <button 
+              className={`btn ${activeTab === 'history' ? 'btn-primary' : 'btn-ghost'}`} 
+              onClick={() => setActiveTab('history')}
+            >
+              History
+            </button>
+          </div>
+          <div className="flex-row gap-4 align-center">
+            {activeTab === 'active' && (
+              <select 
+                className="input-field" 
+                style={{ width: 'auto', marginBottom: 0, padding: '0.5rem 2rem 0.5rem 1rem' }}
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="time">Sort by: Time (Newest First)</option>
+                <option value="risk">Sort by: Risk (High to Low)</option>
+              </select>
+            )}
+            <button className="btn btn-primary" onClick={activeTab === 'active' ? fetchActiveIncidents : fetchHistoryIncidents}>
+              Refresh
+            </button>
           </div>
         </div>
 
         {loading ? (
           <div className="flex-row justify-center p-6 text-muted">Loading incidents...</div>
+        ) : activeTab === 'history' ? (
+          renderHistoryTable()
         ) : incidents.length === 0 ? (
           <div className="glass-panel flex-col align-center justify-center p-6 text-muted" style={{ padding: 'var(--spacing-6)', textAlign: 'center' }}>
             <CheckCircle size={48} color="var(--success)" style={{ marginBottom: 'var(--spacing-4)' }} />
