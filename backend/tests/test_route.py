@@ -306,3 +306,26 @@ class TestSelectBestRoute:
         assert route["distance_m"] == 10500
         assert len(crossed) == 1
         assert crossed[0]["priority"] == "LOW"
+
+    def test_proximity_penalty_scaling(self):
+        """A route passing further from an incident receives a lower score/penalty than a closer route."""
+        # Incident at YESHWANTHPURA (13.02, 77.535) - road closure (base penalty 1000)
+        incidents = [{
+            "id": "INC-CLOSED",
+            "latitude": 13.02,
+            "longitude": 77.535,
+            "priority": 1,
+            "road_closure": 1,
+        }]
+        
+        # Route close: passes directly through incident (0m)
+        route_close = [[13.02, 77.535]]
+        # Route far: passes ~300m away (13.0227, 77.535 -> ~300m away)
+        route_far = [[13.0227, 77.535]]
+        
+        score_close, _ = score_route(route_close, incidents)
+        score_far, _ = score_route(route_far, incidents)
+        
+        assert score_far < score_close
+        assert score_close == 1000.0
+        assert 0.0 < score_far < 1000.0

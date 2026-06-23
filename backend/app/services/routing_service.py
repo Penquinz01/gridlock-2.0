@@ -241,7 +241,9 @@ def score_route(route_coords: list[list[float]], incidents: list[dict]) -> tuple
             else:
                 penalty = 5.0
 
-            total_score += penalty
+            # Scale penalty based on proximity: closer routes get higher penalty
+            proximity_factor = max(0.0, (INCIDENT_ZONE_RADIUS_M - min_dist) / INCIDENT_ZONE_RADIUS_M) if INCIDENT_ZONE_RADIUS_M > 0 else 1.0
+            total_score += penalty * proximity_factor
             incidents_crossed.append({
                 "incident_id": inc["id"],
                 "priority": "HIGH" if is_high else "LOW",
