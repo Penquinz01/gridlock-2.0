@@ -389,39 +389,6 @@ const MapplsIncidentMap = ({
       }
       incidentMarkerRef.current = null;
     }
-
-    if (routePolylineRef.current) {
-      try {
-        if (routePolylineRef.current.remove) {
-          routePolylineRef.current.remove();
-        } else {
-          mapplsClassObject.removeLayer({ map: mapRef.current, layer: routePolylineRef.current });
-        }
-      } catch (err) {}
-      routePolylineRef.current = null;
-    }
-
-    if (originMarkerRef.current) {
-      try {
-        if (originMarkerRef.current.remove) {
-          originMarkerRef.current.remove();
-        } else {
-          mapplsClassObject.removeLayer({ map: mapRef.current, layer: originMarkerRef.current });
-        }
-      } catch (err) {}
-      originMarkerRef.current = null;
-    }
-
-    if (destMarkerRef.current) {
-      try {
-        if (destMarkerRef.current.remove) {
-          destMarkerRef.current.remove();
-        } else {
-          mapplsClassObject.removeLayer({ map: mapRef.current, layer: destMarkerRef.current });
-        }
-      } catch (err) {}
-      destMarkerRef.current = null;
-    }
   };
 
   useEffect(() => {

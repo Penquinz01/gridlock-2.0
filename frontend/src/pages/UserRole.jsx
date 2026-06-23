@@ -19,6 +19,15 @@ const UserRole = () => {
   const [reportStatus, setReportStatus] = useState(null);
   const [mapUrl, setMapUrl] = useState(null);
 
+  const fetchHotspots = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/hotspots?top_n=50`);
+      setHotspots(response.data?.hotspots || []);
+    } catch (error) {
+      console.error("Error fetching hotspots:", error);
+    }
+  };
+
   const handleGetCurrentLocation = () => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(position => {
@@ -43,15 +52,6 @@ const UserRole = () => {
   };
 
   useEffect(() => {
-    // Fetch Hotspots
-    const fetchHotspots = async () => {
-      try {
-        const response = await axios.get(`${API_BASE_URL}/hotspots?top_n=50`);
-        setHotspots(response.data?.hotspots || []);
-      } catch (error) {
-        console.error("Error fetching hotspots:", error);
-      }
-    };
     fetchHotspots();
     
     // Set current time
@@ -271,6 +271,7 @@ const UserRole = () => {
 
       const response = await axios.post(`${API_BASE_URL}/report`, payload);
       setReportStatus({ type: 'success', message: 'Report submitted successfully. Route generated.' });
+      await fetchHotspots();
       
       if (response.data && response.data.diversion_map_url) {
         setMapUrl(`${API_BASE_URL}${response.data.diversion_map_url}`);
